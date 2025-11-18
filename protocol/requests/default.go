@@ -8,8 +8,8 @@ type DefaultWsRequest struct {
 
 // swagger:request PageReq
 type PageReq struct {
-	Skip  int    `json:"skip"`
-	Limit int    `json:"limit"`
+	Skip  int    `json:"skip" validate:"required"`
+	Limit int    `json:"limit" validate:"required"`
 	Sort  string `json:"sort"`
 }
 

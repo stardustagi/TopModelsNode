@@ -6,13 +6,9 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
-	"github.com/stardustagi/TopLib/codec"
 	"github.com/stardustagi/TopLib/libs/logs"
 	"github.com/stardustagi/TopLib/libs/server"
-	"github.com/stardustagi/TopLib/libs/uuid"
 	"github.com/stardustagi/TopLib/utils"
-	"github.com/stardustagi/TopModelsLogin/protocol/requests"
-	"github.com/stardustagi/TopModelsLogin/protocol/responses"
 	"go.uber.org/zap"
 )
 
@@ -60,8 +56,8 @@ func (h *Application) Start() {
 
 func (h *Application) Stop() {
 	h.logger.Info("Stopping HttpBackend")
-	h.backend.Stop()
 	h.manager.Stop()
+	h.backend.Stop()
 }
 
 func (h *Application) AddGroup(group string, middleware ...echo.MiddlewareFunc) {

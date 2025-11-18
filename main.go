@@ -1,12 +1,14 @@
-package TopModelsNode
+package main
 
 import (
 	"github.com/stardustagi/TopLib/libs/conf"
 	"github.com/stardustagi/TopLib/libs/databases"
 	"github.com/stardustagi/TopLib/libs/logs"
 	"github.com/stardustagi/TopLib/libs/redis"
-	message "github.com/stardustagi/TopModelsLogin/backend/services/nats"
-	"github.com/stardustagi/TopModelsLogin/constants"
+	"github.com/stardustagi/TopModelsNode/backend"
+	llm "github.com/stardustagi/TopModelsNode/backend/services/node_llm"
+	users "github.com/stardustagi/TopModelsNode/backend/services/node_users"
+	"github.com/stardustagi/TopModelsNode/constants"
 )
 
 func main() {
@@ -20,5 +22,13 @@ func main() {
 	logger.Info("Init mysql")
 	_, _ = redis.Init(conf.Get("redis"))
 	logger.Info("Init redis")
-	message.Init(conf.Get("nats"))
+	app := backend.NewApplication(conf.Get("websrv"), conf.Get("websocket"))
+	nodeService := llm.GetNodeHttpServiceInstance()
+	nodeService.Start(app)
+	userService := users.GetNodeUsersHttpServiceInstance()
+	userService.Start(app)
+
+	app.Start()
+	app.Stop()
+
 }

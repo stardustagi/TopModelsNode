@@ -17,6 +17,7 @@ var (
 	MailDefaultPassword  string = "ajZxPKxauQaHOtpBJF6W"
 	ObtenationIterations int    = 3
 	CodeKeyExpire        int    = 30
+	Domain               string = "https://example.com"
 )
 
 var (
@@ -54,20 +55,4 @@ func NodeUserPhoneVerifyKey(phone string) string {
 
 func NodeUserEmailVerifyKey(email string) string {
 	return fmt.Sprintf("nodeUserEmailVerifyCode:%s", email)
-}
-
-func NodeAccessKey(nodeUserId int64, ak string) string {
-	return fmt.Sprintf("%d:%s", nodeUserId, ak)
-}
-
-func NodeUserMailVerifyKey(nodeUserId int64) string {
-	return fmt.Sprintf("mail:verify:%d", nodeUserId)
-}
-
-func NodeAccessModelsKey(nodeId string) string {
-	return fmt.Sprintf("node:access:%s", nodeId)
-}
-
-func NodeUserAccessTokenKey(nodeUserId int64) string {
-	return fmt.Sprintf("nodeUser:token:%d", nodeUserId)
 }

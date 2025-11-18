@@ -30,13 +30,13 @@ func NodeAccess() echo.MiddlewareFunc {
 			nodeAccessKey := fmt.Sprintf("%s:%s", constants.ApplicationPrefix, constants.NodeAccessModelsKey(nodeId))
 			secretKey, err := redisCmd.HGet(context.Background(), nodeAccessKey, "securityKey").Result()
 			if err != nil && errors.Is(err, redis.Nil) {
-				return c.JSON(401, map[string]interface{}{
+				return c.JSON(401, map[string]any{
 					"errcode": 2,
 					"errmsg":  "Node 不存在，请重新注册",
 				})
 			}
 			if secretKey == "" {
-				return c.JSON(401, map[string]interface{}{
+				return c.JSON(401, map[string]any{
 					"errcode": 2,
 					"errmsg":  "Node 信息错误，请联系管理员",
 				})
@@ -45,7 +45,7 @@ func NodeAccess() echo.MiddlewareFunc {
 			if jwtStr != "" {
 				jwtObj, ok := jwt.JWTDecrypt(jwtStr, secret)
 				if !ok || jwtObj == nil || jwtObj["token"] == nil || jwtObj["id"] == nil {
-					return c.JSON(401, map[string]interface{}{
+					return c.JSON(401, map[string]any{
 						"errcode": 2,
 						"errmsg":  "jwt解析错误",
 					})
@@ -53,20 +53,20 @@ func NodeAccess() echo.MiddlewareFunc {
 
 				id, ok := jwtObj["id"].(string)
 				if !ok {
-					return c.JSON(401, map[string]interface{}{
+					return c.JSON(401, map[string]any{
 						"errcode": 2,
 						"errmsg":  "用户信息获取失败",
 					})
 				}
 				oldToken, err1 := redisCmd.HGet(context.Background(), nodeAccessKey, "token").Result()
 				if err1 != nil {
-					return c.JSON(401, map[string]interface{}{
+					return c.JSON(401, map[string]any{
 						"errcode": 2,
 						"errmsg":  "获取token失败",
 					})
 				}
 				if jwtObj["token"] != oldToken {
-					return c.JSON(401, map[string]interface{}{
+					return c.JSON(401, map[string]any{
 						"errcode": 2,
 						"errmsg":  "账户已经在其他终端登录",
 					})
@@ -77,7 +77,7 @@ func NodeAccess() echo.MiddlewareFunc {
 				// 判断是否内网IP
 				ok := utils.IsInnerIp(ip)
 				if !ok {
-					return c.JSON(401, map[string]interface{}{
+					return c.JSON(401, map[string]any{
 						"errcode": 2,
 						"errmsg":  "服务器繁忙,请稍后再试!",
 					})
@@ -100,7 +100,7 @@ func NodeUserAccess() echo.MiddlewareFunc {
 			if jwtstr != "" {
 				jwtobj, ok := jwt.JWTDecrypt(jwtstr, secret)
 				if !ok || jwtobj == nil || jwtobj["token"] == nil || jwtobj["id"] == nil {
-					return c.JSON(401, map[string]interface{}{
+					return c.JSON(401, map[string]any{
 						"errcode": 2,
 						"errmsg":  "jwt解析错误",
 					})
@@ -108,14 +108,14 @@ func NodeUserAccess() echo.MiddlewareFunc {
 
 				id, ok := jwtobj["id"].(string)
 				if !ok {
-					return c.JSON(401, map[string]interface{}{
+					return c.JSON(401, map[string]any{
 						"errcode": 2,
 						"errmsg":  "用户信息获取失败",
 					})
 				}
 				intId, err := strconv.ParseInt(id, 10, 64)
 				if err != nil {
-					return c.JSON(401, map[string]interface{}{
+					return c.JSON(401, map[string]any{
 						"errcode": 2,
 						"errmsg":  "用户信息获取失败",
 					})
@@ -126,13 +126,13 @@ func NodeUserAccess() echo.MiddlewareFunc {
 				redisCmd := redis.GetRedisDb()
 				oldToken, err1 := redisCmd.Get(context.Background(), tokenKey).Result()
 				if err1 != nil {
-					return c.JSON(401, map[string]interface{}{
+					return c.JSON(401, map[string]any{
 						"errcode": 2,
 						"errmsg":  "获取token失败",
 					})
 				}
 				if jwtobj["token"] != oldToken {
-					return c.JSON(401, map[string]interface{}{
+					return c.JSON(401, map[string]any{
 						"errcode": 2,
 						"errmsg":  "账户已经在其他终端登录",
 					})
@@ -144,7 +144,7 @@ func NodeUserAccess() echo.MiddlewareFunc {
 				// 判断是否内网IP
 				ok := utils.IsInnerIp(ip)
 				if !ok {
-					return c.JSON(401, map[string]interface{}{
+					return c.JSON(401, map[string]any{
 						"errcode": 2,
 						"errmsg":  "服务器繁忙,请稍后再试!",
 					})

@@ -1,0 +1,49 @@
+[global]
+app_name = "TopModelNode"
+app_version = "0.0.0.1"
+redis_key_prefix = "node"
+
+[websrv]
+port = 8080
+host = "127.0.0.1"
+
+[websocket]
+
+[mysql]
+name = "default"
+master = "root:123456@tcp(127.0.0.1:3306)/top-maas?charset=utf8mb4&parseTime=true&loc=Local"
+use_master_slave = false
+show_sql = true
+
+[logger]
+filename = "logs/app.log"
+maxsize = 60
+maxbackups = 5
+maxage = 7
+compress = true
+localtime = true
+level = -1
+
+[[nats]]
+name = "publisher"
+type = "publisher"
+url = "nats://127.0.0.1:4222"
+use_stream = true
+stream_name = "billing"
+subjects = ["billing.tokenUsage", "billing.nodeUsage","test.subscribe","test.basic"]
+
+[[nats]]
+name = "consumer"
+type = "consumer"
+url = "nats://127.0.0.1:4222"
+use_stream = true
+stream_name = "billing"
+subjects = ["billing.tokenUsage", "billing.nodeUsage","test.subscribe","test.basic"]
+# 添加消费者配置
+max_deliver = 3
+ack_wait = "30s"
+
+[redis]
+addrs = ["127.0.0.1:6379"]
+db_index = 0
+enable_tls = false
