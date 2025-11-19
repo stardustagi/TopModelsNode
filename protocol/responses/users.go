@@ -73,3 +73,9 @@ type NodeUserAkSkInfos struct {
 type GetNodeUserAkSkResp struct {
 	Keys []NodeUserAkSkInfos `json:"keys"`
 }
+
+type UserBalanceResp struct {
+	Balance       int64  `json:"balance"`
+	WalletAddress string `json:"wallet_address"`
+	WalletType    string `json:"wallet_type"`
+}

@@ -64,3 +64,8 @@ type DeleteNodeAkSkRequest struct {
 	Ak     string `json:"ak" validate:"required"`
 	Sk     string `json:"sk" validate:"required"`
 }
+
+type UserBalanceReq struct {
+	UserID     int64  `json:"user_id" validate:"required"`
+	WalletType string `json:"wallet_type" validate:"required"`
+}

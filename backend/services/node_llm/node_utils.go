@@ -226,7 +226,7 @@ func (n *NodeHttpService) handleModelKeyExpiration(expiredKey string) error {
 		zap.String("nodeId", nodeId))
 
 	// 从数据库查找对应的模型信息
-	_, modelInfos, err := n.ReadModelInfo2DB(nodeId)
+	_, modelInfos, err := n.readModelInfo2DB(nodeId)
 	if err != nil {
 		n.logger.Error("从数据库读取模型信息失败",
 			zap.Error(err),
@@ -258,7 +258,7 @@ func (n *NodeHttpService) handleModelKeyExpiration(expiredKey string) error {
 		zap.String("nodeId", nodeId))
 
 	// 注销nodeId对应的节点
-	if ok, err := n.UnRegisterNodes(nodeId); err != nil || !ok {
+	if ok, err := n.unRegisterNodes(nodeId); err != nil || !ok {
 		n.logger.Error("注销节点失败",
 			zap.Error(err),
 			zap.String("nodeId", nodeId))
@@ -350,4 +350,15 @@ func (n *NodeHttpService) checkNodeIdExists(nodeId int64) bool {
 		return false
 	}
 	return true
+}
+
+func (n *NodeHttpService) ownerNodeCheck(nodeUserId int64, nodeId string) (bool, error) {
+	n.logger.Info("LLMUserOwnerNodeCheck called", zap.Int64("nodeUserId", nodeUserId), zap.String("nodeId", nodeId))
+	nodeKeysModel := &models.NodeKeys{
+		NodeUserId: nodeUserId,
+		NodeId:     nodeId,
+	}
+	session := n.dao.NewSession()
+	defer session.Close()
+	return session.FindOne(nodeKeysModel)
 }

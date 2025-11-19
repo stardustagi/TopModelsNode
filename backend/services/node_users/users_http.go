@@ -17,6 +17,7 @@ import (
 	"github.com/stardustagi/TopLib/protocol"
 	mailgateway "github.com/stardustagi/TopModelsLogin/third_party/mail_gateway"
 	"github.com/stardustagi/TopModelsNode/backend"
+	"github.com/stardustagi/TopModelsNode/backend/services/node_llm"
 	"github.com/stardustagi/TopModelsNode/constants"
 	"github.com/stardustagi/TopModelsNode/models"
 	"github.com/stardustagi/TopModelsNode/protocol/requests"
@@ -80,7 +81,13 @@ func (nus *NodeUsersHttpService) Stop() {
 
 func (nus *NodeUsersHttpService) initialization() {
 	// 创建公开路由组（不需要 NodeAccess 鉴权）
-	nus.app.AddGroup("users/system", server.Request())
+	if constants.Debug {
+		nus.app.AddGroup("users/system", server.Request(), server.Cors())
+		nus.app.AddGroup("users", server.Request(), server.Cors(), backend.NodeAccess())
+	} else {
+		nus.app.AddGroup("users/system", server.Request())
+		nus.app.AddGroup("users", server.Request(), server.Cors(), backend.NodeAccess())
+	}
 
 	// 注册公开接口：用户注册和登录
 	nus.app.AddPostHandler("users/system", server.NewHandler(
@@ -94,9 +101,6 @@ func (nus *NodeUsersHttpService) initialization() {
 		[]string{"Users", "用户登录"},
 		nus.LoginFromByEmail,
 	))
-
-	// 创建需要鉴权的用户路由组
-	nus.app.AddGroup("users", server.Request(), backend.NodeAccess())
 
 	// 注册需要鉴权的接口
 	nus.app.AddPostHandler("users", server.NewHandler(
@@ -196,7 +200,7 @@ func (nus *NodeUsersHttpService) NodeUserRegister(c echo.Context,
 	return protocol.Response(c, nil, "注册成功")
 }
 
-// LoginUser 用户登录
+// LoginFromByEmail 用户登录
 // godoc
 // 登录用户
 // @Summary 登录用户
@@ -463,5 +467,39 @@ func (nus *NodeUsersHttpService) ListUsers(c echo.Context, req requests.ListUser
 	resp.Total = total
 	resp.List = userList
 
+	return protocol.Response(c, nil, resp)
+}
+
+// NodeCheckUserBalanceHandler 节点查询用户余额接口
+// @Summary 节点查询用户余额接口
+// @Description 节点查询用户余额接口
+// @Tags 节点管理
+// @Accept json
+// @Produce json
+// @Param nodeId header string true "节点ID"
+// @Param req body requests.UserBalanceReq true "请求参数"
+// @Success 200 {object} responses.UserBalanceResp
+// @Failure 400 {object} responses.DefaultResponse
+// @Failure 500 {object} responses.DefaultResponse
+// @Router /node/user/checkUserBalance [post]
+func (nus *NodeUsersHttpService) NodeCheckUserBalanceHandler(c echo.Context, req requests.UserBalanceReq, resp responses.UserBalanceResp) error {
+	nodeId := c.Request().Header.Get("nodeId")
+	if nodeId == "" {
+		return protocol.Response(c, constants.ErrInvalidParams, "")
+	}
+
+	llmSrv := node_llm.GetNodeHttpServiceInstance()
+	// 检查节点是否在线
+	ok, err := llmSrv.NodeCheckin(nodeId)
+	if err != nil || !ok {
+		return protocol.Response(c, constants.ErrNodeNotRegister.AppendErrors(err), "")
+	}
+	wallet, err := nus.getUserWalletBalance(req.UserID, req.WalletType)
+	if err != nil {
+		return protocol.Response(c, constants.ErrGetUserBalance.AppendErrors(err), "")
+	}
+	resp.Balance = wallet.Balance
+	resp.WalletType = req.WalletType
+	resp.WalletAddress = wallet.WalletAddress
 	return protocol.Response(c, nil, resp)
 }

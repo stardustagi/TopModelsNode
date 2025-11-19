@@ -6,8 +6,9 @@ import (
 )
 
 var (
-	ApplicationName   = "TopModelsNode"
-	ApplicationPrefix = "node"
+	ApplicationName        = "TopModelsNode"
+	ApplicationPrefix      = "node"
+	Debug             bool = false
 )
 
 var (
@@ -34,6 +35,7 @@ func Init() {
 	AppVersion = os.Getenv("APP_VERSION")
 	RedisPrefix = fmt.Sprintf("%s:%s", AppName, AppVersion)
 	ModelsKeyPrefix = fmt.Sprintf("%s:llm:models", RedisPrefix)
+	Debug = os.Getenv("DEBUG") != ""
 }
 
 // NodeUserTokenKey 节点用户TokenKey

@@ -10,46 +10,13 @@ import (
 	"github.com/stardustagi/TopLib/libs/databases"
 	"github.com/stardustagi/TopLib/libs/redis"
 	"github.com/stardustagi/TopLib/libs/uuid"
-	"github.com/stardustagi/TopModelsLogin/backend/services/system"
-	message "github.com/stardustagi/TopModelsNode/backend/services/nats"
 	"github.com/stardustagi/TopModelsNode/constants"
 	"github.com/stardustagi/TopModelsNode/models"
 	"go.uber.org/zap"
 )
 
-// NodeLogin 节点登录
-func (n *NodeHttpService) NodeLogin(ak, once, pwd string, nodeUser *models.NodeUsers) (string, string, error) {
-	n.logger.Info("LLMNodeUserCheck called", zap.String("nodeUserLogin", nodeUser.Email))
-
-	session := n.dao.NewSession()
-	ok, err := session.FindOne(nodeUser)
-	if err != nil {
-		n.logger.Error("节点用户登录失败", zap.Error(err), zap.String("email", nodeUser.Email))
-		return "", "", err
-	}
-	if !ok {
-		n.logger.Error("用户不存在或登录失败", zap.String("email", nodeUser.Email))
-		return "", "", fmt.Errorf("用户不存在或登录失败: %s", nodeUser.Email)
-	}
-	// 验证密码
-	vEmail, err := system.NodeUserMailDecodeToken(pwd, nodeUser.Password, nodeUser.Salt)
-	if err != nil || vEmail != nodeUser.Email {
-		n.logger.Error("节点用户登录失败，密码错误", zap.String("email", nodeUser.Email), zap.Error(err))
-		return "", "", errors.New("节点用户登录失败，密码错误")
-	}
-	n.logger.Info("节点用户登录成功", zap.String("email", nodeUser.Email))
-
-	// 生成Token
-	nodeId, jwtToken, err := n.generateNodeUserToken(ak, once, nodeUser.Id)
-	if err != nil {
-		n.logger.Error("节点用户Token生成失败", zap.String("email", nodeUser.Email), zap.Error(err))
-		return "", "", err
-	}
-	return nodeId, jwtToken, nil
-}
-
-// WriteModelInfo2Db 保存模型信息到数据库
-func (n *NodeHttpService) WriteModelInfo2Db(nodeId, address string, modelsInfo []ModelInfo) (bool, error) {
+// writeModelInfo2Db 保存模型信息到数据库
+func (n *NodeHttpService) writeModelInfo2Db(nodeId, address string, modelsInfo []ModelInfo) (bool, error) {
 	n.logger.Info("SaveModelInfo2Db called")
 	// 数据库会话
 	transactionSession := databases.NewSessionWrapper(n.dao)
@@ -124,8 +91,8 @@ func (n *NodeHttpService) WriteModelInfo2Db(nodeId, address string, modelsInfo [
 	return true, nil
 }
 
-// WriteModelInfo2Redis 保存模型信息到Redis
-func (n *NodeHttpService) WriteModelInfo2Redis(nodeId, address string, modelsInfo []ModelInfo) (bool, error) {
+// writeModelInfo2Redis 保存模型信息到Redis
+func (n *NodeHttpService) writeModelInfo2Redis(nodeId, address string, modelsInfo []ModelInfo) (bool, error) {
 	n.logger.Info("SaveModelInfo2Redis called", zap.String("nodeId", nodeId))
 
 	// 写入node address
@@ -154,9 +121,9 @@ func (n *NodeHttpService) WriteModelInfo2Redis(nodeId, address string, modelsInf
 	return true, nil
 }
 
-// ReadModelInfo2DB 从数据库读取模型信息
-func (n *NodeHttpService) ReadModelInfo2DB(nodeId string) (string, []ModelInfo, error) {
-	n.logger.Info("ReadModelInfo2DB called", zap.String("nodeId", nodeId))
+// readModelInfo2DB 从数据库读取模型信息
+func (n *NodeHttpService) readModelInfo2DB(nodeId string) (string, []ModelInfo, error) {
+	n.logger.Info("readModelInfo2DB called", zap.String("nodeId", nodeId))
 
 	// 查询模型信息
 	var modelsInfoList []*models.ModelsInfo
@@ -235,9 +202,9 @@ func (n *NodeHttpService) ReadModelInfo2DB(nodeId string) (string, []ModelInfo, 
 	return nodeAddress, modelInfos, nil
 }
 
-// ReadModelInfo2Redis 从Redis读取模型信息
-func (n *NodeHttpService) ReadModelInfo2Redis(nodeId string) (string, []ModelInfo, error) {
-	n.logger.Info("ReadModelInfo2Redis called", zap.String("nodeId", nodeId))
+// readModelInfo2Redis 从Redis读取模型信息
+func (n *NodeHttpService) readModelInfo2Redis(nodeId string) (string, []ModelInfo, error) {
+	n.logger.Info("readModelInfo2Redis called", zap.String("nodeId", nodeId))
 
 	// key := fmt.Sprintf("%s:%s", constants.ModelsKeyPrefix, nodeId)
 
@@ -290,7 +257,7 @@ func (n *NodeHttpService) GetModelInfo(nodeId string) (string, []ModelInfo, erro
 	n.logger.Info("GetModelInfo called", zap.String("nodeId", nodeId))
 	var nodeAddress string
 	// 首先尝试从Redis读取
-	address, modelInfos, err := n.ReadModelInfo2Redis(nodeId)
+	address, modelInfos, err := n.readModelInfo2Redis(nodeId)
 	if err != nil {
 		n.logger.Warn("从Redis读取模型信息失败，尝试从数据库读取",
 			zap.Error(err),
@@ -303,7 +270,7 @@ func (n *NodeHttpService) GetModelInfo(nodeId string) (string, []ModelInfo, erro
 	}
 
 	// Redis中没有数据，从数据库读取
-	nodeAddress, modelInfos, err = n.ReadModelInfo2DB(nodeId)
+	nodeAddress, modelInfos, err = n.readModelInfo2DB(nodeId)
 	if err != nil {
 		n.logger.Error("从数据库读取模型信息失败",
 			zap.Error(err),
@@ -314,7 +281,7 @@ func (n *NodeHttpService) GetModelInfo(nodeId string) (string, []ModelInfo, erro
 	// 将数据库中的数据缓存到Redis
 	if len(modelInfos) > 0 {
 		// key := fmt.Sprintf("%s:%s", constants.ModelsKeyPrefix, nodeId)
-		success, err := n.WriteModelInfo2Redis(nodeAddress, nodeId, modelInfos)
+		success, err := n.writeModelInfo2Redis(nodeAddress, nodeId, modelInfos)
 		if !success || err != nil {
 			n.logger.Warn("缓存模型信息到Redis失败",
 				zap.Error(err),
@@ -414,8 +381,8 @@ func (n *NodeHttpService) SendExpireNotification(key string) error {
 	}
 }
 
-// LLMUnregisterNodes 模型节点注销 - 批量注销多个节点的模型
-func (n *NodeHttpService) UnRegisterNodes(nodeId string) (bool, error) {
+// unRegisterNodes 模型节点注销 - 批量注销多个节点的模型
+func (n *NodeHttpService) unRegisterNodes(nodeId string) (bool, error) {
 	n.logger.Info("llmUnregisterNodes called", zap.Int("node id", len(nodeId)))
 
 	exists, err := n.rds.Exists(n.ctx, constants.NodeAccessModelsKey(nodeId))
@@ -446,8 +413,8 @@ func (n *NodeHttpService) UnRegisterNodes(nodeId string) (bool, error) {
 	return true, nil
 }
 
-// LLMKeepAliveNodes 模型节点心跳 - 批量更新多个节点的心跳状态
-func (n *NodeHttpService) KeepAliveNodes(nodeId, address string, nodeModels []ModelInfo) (map[string]bool, error) {
+// keepAliveNodes 模型节点心跳 - 批量更新多个节点的心跳状态
+func (n *NodeHttpService) keepAliveNodes(nodeId, address string, nodeModels []ModelInfo) (map[string]bool, error) {
 	if len(nodeModels) == 0 {
 		n.logger.Warn("节点心跳调用时，模型列表为空", zap.String("nodeId", nodeId))
 		return map[string]bool{nodeId: false}, fmt.Errorf("模型列表不能为空")
@@ -471,7 +438,7 @@ func (n *NodeHttpService) KeepAliveNodes(nodeId, address string, nodeModels []Mo
 	}
 
 	// 重新设置Redis数据
-	success, err := n.WriteModelInfo2Redis(nodeId, address, nodeModels)
+	success, err := n.writeModelInfo2Redis(nodeId, address, nodeModels)
 	if err != nil || !success {
 		n.logger.Error("更新Redis模型信息失败", zap.Error(err), zap.String("nodeId", nodeId))
 		results[nodeId] = false
@@ -479,7 +446,7 @@ func (n *NodeHttpService) KeepAliveNodes(nodeId, address string, nodeModels []Mo
 	}
 
 	// 更新数据库中的数据状态
-	success, err = n.WriteModelInfo2Db(nodeId, address, nodeModels)
+	success, err = n.writeModelInfo2Db(nodeId, address, nodeModels)
 	if err != nil || !success {
 		n.logger.Error("更新数据库模型信息失败", zap.Error(err), zap.String("nodeId", nodeId))
 		results[nodeId] = false
@@ -494,7 +461,7 @@ func (n *NodeHttpService) KeepAliveNodes(nodeId, address string, nodeModels []Mo
 	return results, nil
 }
 
-// LLMUserAddAccessKeyAndSecurityKey 添加节点用户的AccessKey和SecurityKey
+// UserAddAccessKeyAndSecurityKey 添加节点用户的AccessKey和SecurityKey
 func (n *NodeHttpService) UserAddAccessKeyAndSecurityKey(nodeUserId int64) (bool, error) {
 	accessKey := uuid.GenString(16)
 	secretKey := uuid.GenString(16)
@@ -522,87 +489,6 @@ func (n *NodeHttpService) UserAddAccessKeyAndSecurityKey(nodeUserId int64) (bool
 		return false, err
 	}
 	return true, nil
-}
-
-// LLMNodeBillingUsage 节点计费上报
-func (n *NodeHttpService) NodeBillingUsage(nodeId string, usage []LLMUsageReport) error {
-	n.logger.Info("LLMNodeBillingUsage called", zap.String("nodeId", nodeId), zap.Int("usageCount", len(usage)))
-	if len(usage) == 0 {
-		n.logger.Warn("节点计费上报调用时，使用量列表为空", zap.String("nodeId", nodeId))
-		return fmt.Errorf("使用量列表不能为空")
-	}
-	if nodeId == "" {
-		n.logger.Warn("节点计费上报调用时，节点ID为空")
-		return fmt.Errorf("节点ID不能为空")
-	}
-	// 检查nodeId是否注册过
-	key := constants.NodeAccessModelsKey(nodeId)
-	if ok, err := n.rds.Exists(n.ctx, key); (err != nil && !errors.Is(err, redis.Nil)) || !ok {
-		n.logger.Error("节点未注册", zap.Error(err), zap.String("nodeId", nodeId))
-		return err
-	}
-	// 保存到数据库
-	session := n.dao.NewSession()
-	defer session.Close()
-	for _, u := range usage {
-		// 无效模型和私有模型不记录
-		if u.ModelID == "" || u.IsPrivate == 1 {
-			n.logger.Warn("使用量报告中包含无效条目，跳过", zap.String("nodeId", nodeId), zap.Any("usage", u))
-			continue
-		}
-		stream := 0
-		if u.Stream {
-			stream = 1
-		}
-		record := &models.LlmUsageReport{
-			Id:                        u.ID,
-			NodeId:                    nodeId,
-			ModelId:                   u.ModelID,
-			ActualModel:               u.ActualModel,
-			Provider:                  u.Provider,
-			ActualProvider:            u.ActualProvider,
-			Caller:                    u.Caller,
-			CallerKey:                 u.CallerKey,
-			ClientVersion:             u.ClientVersion,
-			TokenUsageInputTokens:     u.TokenUsage.InputTokens,
-			TokenUsageOutputTokens:    u.TokenUsage.OutputTokens,
-			TokenUsageCachedTokens:    u.TokenUsage.CachedTokens,
-			TokenUsageReasoningTokens: u.TokenUsage.ReasoningTokens,
-			TokenUsageTokensPerSec:    u.TokenUsage.TokensPerSec,
-			TokenUsageLatency:         u.TokenUsage.Latency,
-			AgentVersion:              u.AgentVersion,
-			Stream:                    stream,
-		}
-		tbName := record.GetSliceName(u.ID)
-		if ok, err := session.Native().IsTableExist(tbName); err != nil || !ok {
-			err = session.Native().Table(tbName).CreateTable(&record)
-			if err != nil {
-				n.logger.Error("创建分表失败", zap.Error(err), zap.String("table", tbName))
-				return err
-			}
-		}
-		_, err := session.Native().Table(tbName).Insert(&record)
-		if err != nil {
-			n.logger.Error("插入使用量报告失败", zap.Error(err), zap.String("table", tbName), zap.Any("usage", u))
-			return err
-		}
-	}
-	now := time.Now().Unix()
-	for _, us := range usage {
-		us.CreatedAt = now
-	}
-	// 发布到nats
-	byteString, err := json.Marshal(usage)
-	if err != nil {
-		n.logger.Error("使用量报告序列化失败", zap.Error(err), zap.String("nodeId", nodeId))
-		return err
-	}
-	msgSrv := message.GetNatsQueueInstance()
-	if ok := msgSrv.PublisherStreamAsync("billing.nodeUsage", byteString); !ok {
-		n.logger.Error("使用量报告发布到NATS失败", zap.String("nodeId", nodeId))
-		return fmt.Errorf("使用量报告发布到NATS失败")
-	}
-	return nil
 }
 
 // NodeCheckin 在线Node检查

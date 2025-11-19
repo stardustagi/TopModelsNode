@@ -2,7 +2,10 @@ package node_llm
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"strconv"
 	"sync"
 	"time"
 
@@ -13,7 +16,9 @@ import (
 	"github.com/stardustagi/TopLib/libs/server"
 	"github.com/stardustagi/TopLib/libs/uuid"
 	"github.com/stardustagi/TopLib/protocol"
+	"github.com/stardustagi/TopModelsLogin/backend/services/system"
 	"github.com/stardustagi/TopModelsNode/backend"
+	message "github.com/stardustagi/TopModelsNode/backend/services/nats"
 	"github.com/stardustagi/TopModelsNode/constants"
 	"github.com/stardustagi/TopModelsNode/models"
 	"github.com/stardustagi/TopModelsNode/protocol/requests"
@@ -112,7 +117,43 @@ func (n *NodeHttpService) Stop() {
 }
 
 func (n *NodeHttpService) initialization() {
-	n.app.AddGroup("node/llm", server.Request(), backend.NodeAccess())
+	if constants.Debug {
+		n.app.AddGroup("node/llm", server.Request(), backend.NodeAccess(), server.Cors())
+	} else {
+		n.app.AddGroup("node/llm", server.Request(), backend.NodeAccess())
+	}
+	n.app.AddPostHandler("node/llm", server.NewHandler(
+		"nodeKeepLive",
+		[]string{"nodeKeepLive", "public"},
+		n.NodeKeepLive))
+	n.app.AddPostHandler("node/llm", server.NewHandler(
+		"AddModelsInfos",
+		[]string{"llm", "node"},
+		n.AddModelsInfos))
+	n.app.AddPostHandler("node/llm", server.NewHandler(
+		"AddModelsProvider",
+		[]string{"llm", "node"},
+		n.AddModelsProvider))
+	n.app.AddPostHandler("node/llm", server.NewHandler(
+		"MapModelsProviderInfoToNode",
+		[]string{"llm", "node"},
+		n.MapModelsProviderInfoToNode))
+	n.app.AddPostHandler("node/llm", server.NewHandler(
+		"UpsetNodeInfos",
+		[]string{"llm", "node"},
+		n.UpsetNodeInfos))
+	n.app.AddPostHandler("node/llm", server.NewHandler(
+		"ListNodeInfos",
+		[]string{"llm", "node"},
+		n.ListNodeInfos))
+	n.app.AddPostHandler("node/llm", server.NewHandler(
+		"NodeBillingUsage",
+		[]string{"llm", "node"},
+		n.NodeBillingUsage))
+	n.app.AddPostHandler("node/llm", server.NewHandler(
+		"NodeUnregister",
+		[]string{"llm", "node"},
+		n.NodeUnregister))
 }
 
 // AddModelsInfos 添加模型信息
@@ -326,4 +367,189 @@ func (n *NodeHttpService) ListNodeInfos(ctx echo.Context,
 	}
 
 	return protocol.Response(ctx, nil, result)
+}
+
+// NodeKeepLive 节点登录
+func (n *NodeHttpService) NodeKeepLive(ctx echo.Context, req requests.NodeRegisterReq, resp responses.NodeRegisterResp) error {
+	n.logger.Info("NodeLogin called", zap.String("nodeUserLogin", req.Mail))
+
+	nodeUser := &models.NodeUsers{
+		Email: req.Mail,
+	}
+	session := n.dao.NewSession()
+	ok, err := session.FindOne(nodeUser)
+	if err != nil {
+		n.logger.Error("节点用户登录失败", zap.Error(err), zap.String("email", nodeUser.Email))
+		return protocol.Response(ctx, constants.ErrInternalServer.AppendErrors(err), nil)
+	}
+	if !ok {
+		n.logger.Error("用户不存在或登录失败", zap.String("email", nodeUser.Email))
+		return protocol.Response(ctx, constants.ErrNotDataSet, nil)
+	}
+	// 验证密码
+	vEmail, err := system.NodeUserMailDecodeToken(req.Password, nodeUser.Password, nodeUser.Salt)
+	if err != nil || vEmail != nodeUser.Email {
+		n.logger.Error("节点用户登录失败，密码错误", zap.String("email", nodeUser.Email), zap.Error(err))
+		return protocol.Response(ctx, constants.ErrAuthFailed, nil)
+	}
+	n.logger.Info("节点用户登录成功", zap.String("email", nodeUser.Email))
+
+	// 生成Token
+	nodeId, jwtToken, err := n.generateNodeUserToken(req.AccessToken, req.Once, nodeUser.Id)
+	if err != nil {
+		n.logger.Error("节点用户Token生成失败", zap.String("email", nodeUser.Email), zap.Error(err))
+		return protocol.Response(ctx, constants.ErrAuthFailed.AppendErrors(err), nil)
+	}
+	resp.NodeId = nodeId
+	resp.Jwt = jwtToken
+	resp.Once = req.Once
+	resp.AccessKey = req.AccessToken
+	return protocol.Response(ctx, nil, resp)
+}
+
+// NodeBillingUsage 节点计费上报
+// @Summary 节点计费上报
+// @Description 节点计费上报
+// @Tags node
+// @Accept json
+// @Produce json
+// @Param request body requests.NodeReportUsageReq true "请求参数"
+// @Success 200 {object} responses.DefaultResponse
+// @Router /node/llm/billingUsage [post]
+func (n *NodeHttpService) NodeBillingUsage(ctx echo.Context, req requests.NodeReportUsageReq, resp responses.DefaultResponse) error {
+	n.logger.Info("LLMNodeBillingUsage called",
+		zap.String("nodeId", req.NodeId),
+		zap.Int("usageCount", len(req.Report)))
+	if len(req.Report) == 0 {
+		n.logger.Warn("节点计费上报调用时，使用量列表为空", zap.String("nodeId", req.NodeId))
+		return protocol.Response(ctx,
+			constants.ErrInternalServer.AppendErrors(fmt.Errorf("使用量列表不能为空")),
+			nil)
+	}
+	if req.NodeId == "" {
+		n.logger.Warn("节点计费上报调用时，节点ID为空")
+		return protocol.Response(ctx,
+			constants.ErrInternalServer.AppendErrors(fmt.Errorf("节点ID不能为空")),
+			nil)
+	}
+	// 检查nodeId是否注册过
+	key := constants.NodeAccessModelsKey(req.NodeId)
+	if ok, err := n.rds.Exists(n.ctx, key); (err != nil && !errors.Is(err, redis.Nil)) || !ok {
+		n.logger.Error("节点未注册", zap.Error(err), zap.String("nodeId", req.NodeId))
+		return protocol.Response(ctx,
+			constants.ErrInternalServer.AppendErrors(fmt.Errorf("节点未注册")),
+			nil)
+	}
+	// 保存到数据库
+	session := n.dao.NewSession()
+	defer session.Close()
+	for _, u := range req.Report {
+		// 无效模型和私有模型不记录
+		if u.ModelID == "" || u.IsPrivate == 1 {
+			n.logger.Warn("使用量报告中包含无效条目，跳过", zap.String("nodeId", req.NodeId), zap.Any("usage", u))
+			continue
+		}
+		stream := 0
+		if u.Stream {
+			stream = 1
+		}
+		record := &models.LlmUsageReport{
+			Id:                        u.ID,
+			NodeId:                    req.NodeId,
+			ModelId:                   u.ModelID,
+			ActualModel:               u.ActualModel,
+			Provider:                  u.Provider,
+			ActualProvider:            u.ActualProvider,
+			Caller:                    u.Caller,
+			CallerKey:                 u.CallerKey,
+			ClientVersion:             u.ClientVersion,
+			TokenUsageInputTokens:     u.TokenUsage.InputTokens,
+			TokenUsageOutputTokens:    u.TokenUsage.OutputTokens,
+			TokenUsageCachedTokens:    u.TokenUsage.CachedTokens,
+			TokenUsageReasoningTokens: u.TokenUsage.ReasoningTokens,
+			TokenUsageTokensPerSec:    u.TokenUsage.TokensPerSec,
+			TokenUsageLatency:         u.TokenUsage.Latency,
+			AgentVersion:              u.AgentVersion,
+			Stream:                    stream,
+		}
+		tbName := record.GetSliceName(u.ID)
+		if ok, err := session.Native().IsTableExist(tbName); err != nil || !ok {
+			err = session.Native().Table(tbName).CreateTable(&record)
+			if err != nil {
+				n.logger.Error("创建分表失败", zap.Error(err), zap.String("table", tbName))
+				return protocol.Response(ctx,
+					constants.ErrInternalServer.AppendErrors(fmt.Errorf("创建分表失败: %v", err)),
+					nil)
+			}
+		}
+		_, err := session.Native().Table(tbName).Insert(&record)
+		if err != nil {
+			n.logger.Error("插入使用量报告失败", zap.Error(err), zap.String("table", tbName), zap.Any("usage", u))
+			return protocol.Response(ctx,
+				constants.ErrInternalServer.AppendErrors(err),
+				nil)
+		}
+	}
+	now := time.Now().Unix()
+	for _, us := range req.Report {
+		us.CreatedAt = now
+	}
+	// 发布到nats
+	byteString, err := json.Marshal(req.Report)
+	if err != nil {
+		n.logger.Error("使用量报告序列化失败", zap.Error(err), zap.String("nodeId", req.NodeId))
+		return protocol.Response(ctx,
+			constants.ErrInternalServer.AppendErrors(err),
+			nil)
+	}
+	msgSrv := message.GetNatsQueueInstance()
+	if ok := msgSrv.PublisherStreamAsync("billing.nodeUsage", byteString); !ok {
+		n.logger.Error("使用量报告发布到NATS失败", zap.String("nodeId", req.NodeId))
+		return protocol.Response(ctx,
+			constants.ErrInternalServer.AppendErrors(fmt.Errorf("使用量报告发布失败")),
+			nil)
+	}
+	return protocol.Response(ctx, nil, "success")
+}
+
+// NodeUnregister LLM节点用户注销
+// godoc
+// @Summary LLM节点用户注销
+// @Description LLM节点用户注销
+// @Tags LLM模型节点管理
+// @Accept json
+// @Produce json
+// @Param nodeUserId query int true "节点用户ID"
+// @Param request body requests.NodeUnRegisterReq true "节点用户注销请求"
+// @Success 200 {object} responses.DefaultResponse "成功"
+// @Failure 400 {object} responses.DefaultResponse "参数错误"
+// @Failure 500 {object} responses.DefaultResponse "服务器错误"
+// @Router /node/llm/nodeUnRegister [post]
+func (n *NodeHttpService) NodeUnregister(c echo.Context, req requests.NodeUnRegisterReq, resp responses.DefaultResponse) error {
+	logger := logs.GetLogger("NodeUnregister call")
+	_nodeUserId := c.QueryParams().Get("id")
+	nodeUserId, err := strconv.ParseInt(_nodeUserId, 10, 64)
+	if err != nil {
+		logger.Error("Failed to parse node user id", zap.String("nodeUserId", _nodeUserId), zap.Error(err))
+		return protocol.Response(c, constants.ErrInvalidParams, nil)
+	}
+	logger.Info("LLM node user unregister requested", zap.Any("request", req))
+
+	ok, err := n.ownerNodeCheck(nodeUserId, req.NodeId)
+	if err != nil {
+		logger.Error("Failed to get node user owner node", zap.Error(err))
+		return protocol.Response(c, constants.ErrInternalServer.AppendErrors(err), nil)
+	}
+	if !ok {
+		logger.Error("Node user does not own this node", zap.Int64("nodeUserId", nodeUserId), zap.String("nodeId", req.NodeId))
+		return protocol.Response(c, constants.ErrNodeUserNotOwnNode, nil)
+	}
+	// Unregister node user
+	if ok, err := n.unRegisterNodes(req.NodeId); err != nil || !ok {
+		logger.Error("Failed to unregister node user", zap.Error(err), zap.String("", req.Mail))
+		return protocol.Response(c, constants.ErrInternalServer, nil)
+	}
+
+	logger.Info("Successfully unregistered node user", zap.String("mail", req.Mail))
+	return protocol.Response(c, nil, "注销成功")
 }
