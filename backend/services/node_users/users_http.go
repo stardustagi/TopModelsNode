@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
@@ -115,6 +116,12 @@ func (nus *NodeUsersHttpService) initialization() {
 		nus.GetUserInfo,
 	))
 
+	nus.app.AddGetHandler("users/system", server.NewHandler(
+		"nodeUserActive",
+		[]string{"user", "active"},
+		nus.NodeUserActive,
+	))
+
 	nus.app.AddPostHandler("users", server.NewHandler(
 		"update",
 		[]string{"Users", "更新用户信息"},
@@ -198,6 +205,38 @@ func (nus *NodeUsersHttpService) NodeUserRegister(c echo.Context,
 	}
 	nus.logger.Info("节点用户注册成功", zap.String("email", req.Email), zap.String("code", activeCode))
 	return protocol.Response(c, nil, "注册成功")
+}
+
+// NodeUserActive 激活节点用户
+// godoc 激活节点用户
+// 激活节点用户
+// @Summary 激活节点用户
+// @Description 激活节点用户
+// @Tags Node
+// @Accept json
+// @Produce json
+// @Param nodeUserId query string true "节点用户ID"
+// @Param nodeUserActiveCode query string true "节点用户激活码"
+// @Success 200 {object} responses.DefaultResponse
+// @Failure 400 {object} responses.DefaultResponse
+// @Failure 500 {object} responses.DefaultResponse
+// @Router /users/system/nodeUserActive [get]
+func (nus *NodeUsersHttpService) NodeUserActive(c echo.Context, req requests.DefaultRequest, resp responses.DefaultResponse) error {
+	logger := logs.GetLogger("NodeUserActive called ")
+	nodeUserId := c.QueryParams().Get("nodeUserId")
+	nodeUserActiveCode := c.QueryParams().Get("nodeUserActiveCode")
+	nodeUserIdNumber, err := strconv.ParseInt(nodeUserId, 10, 64)
+	if err != nil {
+		logger.Error("Failed to parse node user id", zap.String("nodeUserId", nodeUserId), zap.Error(err))
+		return protocol.Response(c, constants.ErrInvalidParams, nil)
+	}
+
+	ok, err := nus.nodeUserActive(nodeUserIdNumber, nodeUserActiveCode)
+	if err != nil || !ok {
+		logger.Error("Failed to active node user", zap.Error(err))
+		return protocol.Response(c, constants.ErrInternalServer, nil)
+	}
+	return protocol.Response(c, nil, "激活成功")
 }
 
 // LoginFromByEmail 用户登录

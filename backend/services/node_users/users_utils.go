@@ -6,10 +6,12 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/stardustagi/TopLib/libs/jwt"
+	"github.com/stardustagi/TopLib/libs/redis"
 	"github.com/stardustagi/TopModelsNode/constants"
 	"github.com/stardustagi/TopModelsNode/models"
 	"github.com/stardustagi/TopModelsNode/protocol/responses"
@@ -168,4 +170,42 @@ func (nus *NodeUsersHttpService) convertToUserInfoResponse(user *models.NodeUser
 		CreateTime: time.Unix(user.CreatedAt, 0),
 		UpdateTime: time.Unix(user.LastUpdate, 0),
 	}
+}
+
+func (nus *NodeUsersHttpService) nodeUserActive(nodeUserId int64, activeCode string) (bool, error) {
+	nus.logger.Info("NodeUserActive called", zap.Int64("nodeUserId", nodeUserId), zap.String("activeCode", activeCode))
+	key := constants.NodeUserMailVerifyKey(nodeUserId)
+	storedCode, err := nus.rds.Get(nus.ctx, key)
+	if err != nil && !errors.Is(err, redis.Nil) {
+		nus.logger.Info("获取激活码失败", zap.Int64("nodeUserId", nodeUserId), zap.Error(err))
+		return false, err
+	}
+	if string(storedCode) != activeCode {
+		nus.logger.Info("激活码不匹配", zap.Int64("nodeUserId", nodeUserId))
+		return false, fmt.Errorf("激活码不匹配")
+	}
+	nodeUser := &models.NodeUsers{
+		Id: nodeUserId,
+	}
+	session := nus.dao.NewSession()
+	ok, err := session.FindOne(nodeUser)
+	if err != nil {
+		nus.logger.Error("nodeUser查询失败", zap.Error(err), zap.Int64("nodeUserId", nodeUserId))
+		return false, err
+	}
+	if !ok {
+		nus.logger.Info("节点用户不存在", zap.Int64("nodeUserId", nodeUserId))
+		return false, fmt.Errorf("节点用户不存在: %d", nodeUserId)
+	}
+	// 更新节点用户状态为激活
+	nodeUser.IsActive = 1
+	nodeUser.LastUpdate = time.Now().Unix()
+
+	_, err = session.UpdateById(nodeUserId, nodeUser)
+	if err != nil {
+		nus.logger.Error("更新节点用户状态失败", zap.Error(err), zap.Int64("nodeUserId", nodeUserId))
+		return false, err
+	}
+	nus.logger.Info("节点用户激活成功", zap.Int64("nodeUserId", nodeUserId))
+	return true, nil
 }
