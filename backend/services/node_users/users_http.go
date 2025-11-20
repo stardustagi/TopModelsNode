@@ -234,8 +234,9 @@ func (nus *NodeUsersHttpService) LoginFromByEmail(c echo.Context, req requests.L
 	}
 
 	// 3. 验证密码
-	hashedPassword := nus.hashPassword(req.Password, user.Salt)
-	if hashedPassword != user.Password {
+	//hashedPassword := nus.hashPassword(req.Password, user.Salt)
+	decMail, err := nus.nodeUserMailDecodeToken(req.Password, user.Password, user.Salt)
+	if decMail != user.Email {
 		return protocol.Response(c, errors.New("用户不存在或密码错误", http.StatusUnauthorized), nil)
 	}
 
