@@ -177,7 +177,7 @@ func (nus *NodeUsersHttpService) NodeUserRegister(c echo.Context,
 	nodeUser.Password = hashedPwd
 	nodeUser.Salt = salt
 	nodeUser.CreatedAt = time.Now().Unix()
-	nodeUser.IsActive = 0
+	nodeUser.IsActive = 1
 
 	// 保存到数据库
 	_, err = session.InsertOne(nodeUser)
