@@ -95,6 +95,6 @@ type NodeReportUsageReq struct {
 }
 
 type NodeUnRegisterReq struct {
-	Mail   string `json:"mail" validate:"required,email"`
-	NodeId string `json:"node_id" validate:"required"`
+	Mail string `json:"mail" validate:"required,email"`
+	Name string `json:"name" validate:"required"`
 }

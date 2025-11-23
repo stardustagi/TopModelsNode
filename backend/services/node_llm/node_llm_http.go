@@ -536,17 +536,18 @@ func (n *NodeHttpService) NodeUnregister(c echo.Context, req requests.NodeUnRegi
 	}
 	logger.Info("LLM node user unregister requested", zap.Any("request", req))
 
-	ok, err := n.ownerNodeCheck(nodeUserId, req.NodeId)
+	ok, err := n.ownerNodeCheck(nodeUserId, req.Name)
 	if err != nil {
 		logger.Error("Failed to get node user owner node", zap.Error(err))
 		return protocol.Response(c, constants.ErrInternalServer.AppendErrors(err), nil)
 	}
 	if !ok {
-		logger.Error("Node user does not own this node", zap.Int64("nodeUserId", nodeUserId), zap.String("nodeId", req.NodeId))
+		logger.Error("Node user does not own this node",
+			zap.Int64("nodeUserId", nodeUserId), zap.String("nodeName", req.Name))
 		return protocol.Response(c, constants.ErrNodeUserNotOwnNode, nil)
 	}
 	// Unregister node user
-	if ok, err := n.unRegisterNodes(req.NodeId); err != nil || !ok {
+	if ok, err := n.unRegisterNodes(req.Name); err != nil || !ok {
 		logger.Error("Failed to unregister node user", zap.Error(err), zap.String("", req.Mail))
 		return protocol.Response(c, constants.ErrInternalServer, nil)
 	}
