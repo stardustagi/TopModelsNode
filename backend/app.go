@@ -50,6 +50,7 @@ func NewApplication(configBytes, wsConfigBytes []byte) *Application {
 }
 
 func (h *Application) Start() {
+	h.logger.Info("Starting HttpBackend")
 	go h.manager.Start()
 	go func() {
 		if err := h.backend.Start(); err != nil {
