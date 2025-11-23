@@ -16,13 +16,13 @@ import (
 	"github.com/stardustagi/TopLib/libs/server"
 	"github.com/stardustagi/TopLib/libs/uuid"
 	"github.com/stardustagi/TopLib/protocol"
-	mailgateway "github.com/stardustagi/TopModelsLogin/third_party/mail_gateway"
 	"github.com/stardustagi/TopModelsNode/backend"
 	"github.com/stardustagi/TopModelsNode/backend/services/node_llm"
 	"github.com/stardustagi/TopModelsNode/constants"
 	"github.com/stardustagi/TopModelsNode/models"
 	"github.com/stardustagi/TopModelsNode/protocol/requests"
 	"github.com/stardustagi/TopModelsNode/protocol/responses"
+	mailgateway "github.com/stardustagi/TopModelsNode/third_party/mail_gateway"
 
 	"go.uber.org/zap"
 )
@@ -273,7 +273,6 @@ func (nus *NodeUsersHttpService) LoginFromByEmail(c echo.Context, req requests.L
 	}
 
 	// 3. 验证密码
-	//hashedPassword := nus.hashPassword(req.Password, user.Salt)
 	decMail, err := nus.nodeUserMailDecodeToken(req.Password, user.Password, user.Salt)
 	if decMail != user.Email {
 		return protocol.Response(c, errors.New("用户不存在或密码错误", http.StatusUnauthorized), nil)
