@@ -9,6 +9,7 @@ import (
 	llm "github.com/stardustagi/TopModelsNode/backend/services/node_llm"
 	users "github.com/stardustagi/TopModelsNode/backend/services/node_users"
 	"github.com/stardustagi/TopModelsNode/constants"
+	_ "github.com/stardustagi/TopModelsNode/docs"
 	echoSwagger "github.com/swaggo/echo-swagger"
 )
 
