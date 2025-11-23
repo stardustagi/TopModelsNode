@@ -51,7 +51,11 @@ func NewApplication(configBytes, wsConfigBytes []byte) *Application {
 
 func (h *Application) Start() {
 	go h.manager.Start()
-	go h.backend.Start()
+	go func() {
+		if err := h.backend.Start(); err != nil {
+			h.logger.Error("backend.Start error", zap.Error(err))
+		}
+	}()
 }
 
 func (h *Application) Stop() {
