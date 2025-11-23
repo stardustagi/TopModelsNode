@@ -27,12 +27,13 @@ var (
 	once              sync.Once
 )
 
-func Init(config []byte) {
+func Init(config []byte) IMessage {
 	once.Do(func() {
 		nats.Init(config)
 		t := "publisher"
 		natsQueueInstance = NewNatsQueue(t)
 	})
+	return natsQueueInstance
 }
 
 func GetNatsQueueInstance() IMessage {
