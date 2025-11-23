@@ -95,6 +95,40 @@ const docTemplate = `{
                 }
             }
         },
+        "/node/llm/billingUsage": {
+            "post": {
+                "description": "节点计费上报",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "node"
+                ],
+                "summary": "节点计费上报",
+                "parameters": [
+                    {
+                        "description": "请求参数",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.NodeReportUsageReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/responses.DefaultResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/node/llm/listNodeInfos": {
             "post": {
                 "description": "获取模型信息",
@@ -163,9 +197,62 @@ const docTemplate = `{
                 }
             }
         },
+        "/node/llm/nodeUnRegister": {
+            "post": {
+                "description": "LLM节点用户注销",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "LLM模型节点管理"
+                ],
+                "summary": "LLM节点用户注销",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "节点用户ID",
+                        "name": "nodeUserId",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "description": "节点用户注销请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.NodeUnRegisterReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "成功",
+                        "schema": {
+                            "$ref": "#/definitions/responses.DefaultResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "参数错误",
+                        "schema": {
+                            "$ref": "#/definitions/responses.DefaultResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器错误",
+                        "schema": {
+                            "$ref": "#/definitions/responses.DefaultResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/node/llm/upsetNodeInfos": {
             "post": {
-                "description": "添加/更新模型信息",
+                "description": "添加/更新节点信息",
                 "consumes": [
                     "application/json"
                 ],
@@ -175,7 +262,7 @@ const docTemplate = `{
                 "tags": [
                     "node"
                 ],
-                "summary": "添加/更新模型信息",
+                "summary": "添加/更新节点信息",
                 "parameters": [
                     {
                         "description": "请求参数",
@@ -223,9 +310,9 @@ const docTemplate = `{
                 }
             }
         },
-        "/node/public/register": {
+        "/node/user/checkUserBalance": {
             "post": {
-                "description": "注册节点用户",
+                "description": "节点查询用户余额接口",
                 "consumes": [
                     "application/json"
                 ],
@@ -233,17 +320,24 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Node"
+                    "节点管理"
                 ],
-                "summary": "注册节点用户",
+                "summary": "节点查询用户余额接口",
                 "parameters": [
                     {
-                        "description": "注册节点用户请求",
-                        "name": "request",
+                        "type": "string",
+                        "description": "节点ID",
+                        "name": "nodeId",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "请求参数",
+                        "name": "req",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/requests.RegisterUserRequest"
+                            "$ref": "#/definitions/requests.UserBalanceReq"
                         }
                     }
                 ],
@@ -251,7 +345,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/responses.DefaultResponse"
+                            "$ref": "#/definitions/responses.UserBalanceResp"
                         }
                     },
                     "400": {
@@ -448,6 +542,103 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/users/system/nodeUserActive": {
+            "get": {
+                "description": "激活节点用户",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Node"
+                ],
+                "summary": "激活节点用户",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "节点用户ID",
+                        "name": "nodeUserId",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "节点用户激活码",
+                        "name": "nodeUserActiveCode",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/responses.DefaultResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.DefaultResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.DefaultResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/users/system/register": {
+            "post": {
+                "description": "注册节点用户",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Node"
+                ],
+                "summary": "注册节点用户",
+                "parameters": [
+                    {
+                        "description": "注册节点用户请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.RegisterUserRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/responses.DefaultResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.DefaultResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.DefaultResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -606,6 +797,38 @@ const docTemplate = `{
                 }
             }
         },
+        "requests.NodeReportUsageReq": {
+            "type": "object",
+            "required": [
+                "node_id"
+            ],
+            "properties": {
+                "node_id": {
+                    "type": "string"
+                },
+                "report": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/requests.UsageReport"
+                    }
+                }
+            }
+        },
+        "requests.NodeUnRegisterReq": {
+            "type": "object",
+            "required": [
+                "mail",
+                "name"
+            ],
+            "properties": {
+                "mail": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
         "requests.PageReq": {
             "type": "object",
             "required": [
@@ -629,6 +852,7 @@ const docTemplate = `{
             "required": [
                 "email",
                 "password",
+                "phone",
                 "username"
             ],
             "properties": {
@@ -636,8 +860,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "nickname": {
-                    "type": "string",
-                    "maxLength": 50
+                    "type": "string"
                 },
                 "password": {
                     "type": "string",
@@ -653,6 +876,29 @@ const docTemplate = `{
                     "type": "string",
                     "maxLength": 50,
                     "minLength": 3
+                }
+            }
+        },
+        "requests.TokenUsage": {
+            "type": "object",
+            "properties": {
+                "cached_tokens": {
+                    "type": "integer"
+                },
+                "input_tokens": {
+                    "type": "integer"
+                },
+                "latency": {
+                    "type": "number"
+                },
+                "output_tokens": {
+                    "type": "integer"
+                },
+                "reasoning_tokens": {
+                    "type": "integer"
+                },
+                "tokens_per_sec": {
+                    "type": "integer"
                 }
             }
         },
@@ -684,18 +930,97 @@ const docTemplate = `{
         },
         "requests.UpsetNodeInfoRequest": {
             "type": "object",
-            "required": [
-                "node_user_id"
-            ],
             "properties": {
-                "code": {
+                "access_key": {
                     "type": "string"
+                },
+                "company_id": {
+                    "type": "integer"
                 },
                 "domain": {
                     "type": "string"
                 },
+                "name": {
+                    "type": "string"
+                },
                 "node_user_id": {
                     "type": "integer"
+                },
+                "secret_key": {
+                    "type": "string"
+                }
+            }
+        },
+        "requests.UsageReport": {
+            "type": "object",
+            "properties": {
+                "actual_model": {
+                    "description": "实际使用的模型",
+                    "type": "string"
+                },
+                "actual_provider": {
+                    "description": "实际服务商",
+                    "type": "string"
+                },
+                "actual_provider_id": {
+                    "description": "实际服务商id",
+                    "type": "string"
+                },
+                "agent_version": {
+                    "type": "string"
+                },
+                "caller": {
+                    "type": "string"
+                },
+                "caller_key": {
+                    "type": "string"
+                },
+                "client_version": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_private": {
+                    "description": "是否私有模型",
+                    "type": "integer"
+                },
+                "model": {
+                    "type": "string"
+                },
+                "model_id": {
+                    "description": "模型id（计费使用）",
+                    "type": "string"
+                },
+                "node_id": {
+                    "type": "string"
+                },
+                "provider": {
+                    "type": "string"
+                },
+                "stream": {
+                    "type": "boolean"
+                },
+                "token_usage": {
+                    "$ref": "#/definitions/requests.TokenUsage"
+                }
+            }
+        },
+        "requests.UserBalanceReq": {
+            "type": "object",
+            "required": [
+                "user_id",
+                "wallet_type"
+            ],
+            "properties": {
+                "user_id": {
+                    "type": "integer"
+                },
+                "wallet_type": {
+                    "type": "string"
                 }
             }
         },
@@ -754,6 +1079,20 @@ const docTemplate = `{
             "properties": {
                 "user_info": {
                     "$ref": "#/definitions/responses.UserInfoResponse"
+                }
+            }
+        },
+        "responses.UserBalanceResp": {
+            "type": "object",
+            "properties": {
+                "balance": {
+                    "type": "integer"
+                },
+                "wallet_address": {
+                    "type": "string"
+                },
+                "wallet_type": {
+                    "type": "string"
                 }
             }
         },

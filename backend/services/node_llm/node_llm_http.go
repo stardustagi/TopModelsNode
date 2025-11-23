@@ -16,7 +16,6 @@ import (
 	"github.com/stardustagi/TopLib/libs/server"
 	"github.com/stardustagi/TopLib/libs/uuid"
 	"github.com/stardustagi/TopLib/protocol"
-	"github.com/stardustagi/TopModelsLogin/backend/services/system"
 	"github.com/stardustagi/TopModelsNode/backend"
 	message "github.com/stardustagi/TopModelsNode/backend/services/nats"
 	"github.com/stardustagi/TopModelsNode/constants"
@@ -381,7 +380,7 @@ func (n *NodeHttpService) NodeLogin(ctx echo.Context, req requests.NodeLoginReq,
 		return protocol.Response(ctx, constants.ErrNotDataSet, nil)
 	}
 	// 验证密码
-	vEmail, err := system.NodeUserMailDecodeToken(req.Password, nodeUser.Password, nodeUser.Salt)
+	vEmail, err := n.nodeUserMailDecodeToken(req.Password, nodeUser.Password, nodeUser.Salt)
 	if err != nil || vEmail != nodeUser.Email {
 		n.logger.Error("节点用户登录失败，密码错误", zap.String("email", nodeUser.Email), zap.Error(err))
 		return protocol.Response(ctx, constants.ErrAuthFailed, nil)

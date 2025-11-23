@@ -23,12 +23,12 @@ const (
 	JWTSecretKey = "your-secret-key-change-in-production"
 )
 
-// NodeUserMailEncodeToken 节点用户邮箱加密
+// nodeUserMailEncodeToken 节点用户邮箱加密
 func (nus *NodeUsersHttpService) nodeUserMailEncodeToken(mail, password string, fixedSalt string) (string, error) {
 	return jwt.EncryptWithFixedSalt(password, constants.ObtenationIterations, mail, fixedSalt)
 }
 
-// NodeUserMailDecodeToken 节点用户邮箱解密
+// nodeUserMailDecodeToken 节点用户邮箱解密
 func (nus *NodeUsersHttpService) nodeUserMailDecodeToken(inPassword, dbPassword string, fixedSalt string) (string, error) {
 	return jwt.DecryptWithFixedSalt(inPassword, constants.ObtenationIterations, dbPassword, fixedSalt)
 }

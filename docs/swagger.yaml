@@ -103,6 +103,27 @@ definitions:
     - name
     - type
     type: object
+  requests.NodeReportUsageReq:
+    properties:
+      node_id:
+        type: string
+      report:
+        items:
+          $ref: '#/definitions/requests.UsageReport'
+        type: array
+    required:
+    - node_id
+    type: object
+  requests.NodeUnRegisterReq:
+    properties:
+      mail:
+        type: string
+      name:
+        type: string
+    required:
+    - mail
+    - name
+    type: object
   requests.PageReq:
     properties:
       limit:
@@ -120,7 +141,6 @@ definitions:
       email:
         type: string
       nickname:
-        maxLength: 50
         type: string
       password:
         maxLength: 100
@@ -137,7 +157,23 @@ definitions:
     required:
     - email
     - password
+    - phone
     - username
+    type: object
+  requests.TokenUsage:
+    properties:
+      cached_tokens:
+        type: integer
+      input_tokens:
+        type: integer
+      latency:
+        type: number
+      output_tokens:
+        type: integer
+      reasoning_tokens:
+        type: integer
+      tokens_per_sec:
+        type: integer
     type: object
   requests.UpdateUserInfoRequest:
     properties:
@@ -159,14 +195,68 @@ definitions:
     type: object
   requests.UpsetNodeInfoRequest:
     properties:
-      code:
+      access_key:
         type: string
+      company_id:
+        type: integer
       domain:
+        type: string
+      name:
         type: string
       node_user_id:
         type: integer
+      secret_key:
+        type: string
+    type: object
+  requests.UsageReport:
+    properties:
+      actual_model:
+        description: 实际使用的模型
+        type: string
+      actual_provider:
+        description: 实际服务商
+        type: string
+      actual_provider_id:
+        description: 实际服务商id
+        type: string
+      agent_version:
+        type: string
+      caller:
+        type: string
+      caller_key:
+        type: string
+      client_version:
+        type: string
+      created_at:
+        type: integer
+      id:
+        type: string
+      is_private:
+        description: 是否私有模型
+        type: integer
+      model:
+        type: string
+      model_id:
+        description: 模型id（计费使用）
+        type: string
+      node_id:
+        type: string
+      provider:
+        type: string
+      stream:
+        type: boolean
+      token_usage:
+        $ref: '#/definitions/requests.TokenUsage'
+    type: object
+  requests.UserBalanceReq:
+    properties:
+      user_id:
+        type: integer
+      wallet_type:
+        type: string
     required:
-    - node_user_id
+    - user_id
+    - wallet_type
     type: object
   responses.DefaultResponse:
     type: object
@@ -204,6 +294,15 @@ definitions:
     properties:
       user_info:
         $ref: '#/definitions/responses.UserInfoResponse'
+    type: object
+  responses.UserBalanceResp:
+    properties:
+      balance:
+        type: integer
+      wallet_address:
+        type: string
+      wallet_type:
+        type: string
     type: object
   responses.UserInfoResponse:
     properties:
@@ -282,6 +381,28 @@ paths:
       summary: 添加模型供应商
       tags:
       - NodeLLM
+  /node/llm/billingUsage:
+    post:
+      consumes:
+      - application/json
+      description: 节点计费上报
+      parameters:
+      - description: 请求参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.NodeReportUsageReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.DefaultResponse'
+      summary: 节点计费上报
+      tags:
+      - node
   /node/llm/listNodeInfos:
     post:
       consumes:
@@ -326,11 +447,46 @@ paths:
       summary: 映射模型和模型供应商
       tags:
       - NodeLLM
+  /node/llm/nodeUnRegister:
+    post:
+      consumes:
+      - application/json
+      description: LLM节点用户注销
+      parameters:
+      - description: 节点用户ID
+        in: query
+        name: nodeUserId
+        required: true
+        type: integer
+      - description: 节点用户注销请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.NodeUnRegisterReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            $ref: '#/definitions/responses.DefaultResponse'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/responses.DefaultResponse'
+        "500":
+          description: 服务器错误
+          schema:
+            $ref: '#/definitions/responses.DefaultResponse'
+      summary: LLM节点用户注销
+      tags:
+      - LLM模型节点管理
   /node/llm/upsetNodeInfos:
     post:
       consumes:
       - application/json
-      description: 添加/更新模型信息
+      description: 添加/更新节点信息
       parameters:
       - description: 请求参数
         in: body
@@ -345,7 +501,7 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/responses.DefaultResponse'
-      summary: 添加/更新模型信息
+      summary: 添加/更新节点信息
       tags:
       - node
   /node/public/login:
@@ -365,25 +521,30 @@ paths:
           schema:
             $ref: '#/definitions/responses.DefaultResponse'
       summary: 登录用户
-  /node/public/register:
+  /node/user/checkUserBalance:
     post:
       consumes:
       - application/json
-      description: 注册节点用户
+      description: 节点查询用户余额接口
       parameters:
-      - description: 注册节点用户请求
+      - description: 节点ID
+        in: header
+        name: nodeId
+        required: true
+        type: string
+      - description: 请求参数
         in: body
-        name: request
+        name: req
         required: true
         schema:
-          $ref: '#/definitions/requests.RegisterUserRequest'
+          $ref: '#/definitions/requests.UserBalanceReq'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/responses.DefaultResponse'
+            $ref: '#/definitions/responses.UserBalanceResp'
         "400":
           description: Bad Request
           schema:
@@ -392,9 +553,9 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/responses.DefaultResponse'
-      summary: 注册节点用户
+      summary: 节点查询用户余额接口
       tags:
-      - Node
+      - 节点管理
   /node/user/getUserInfo:
     post:
       consumes:
@@ -513,4 +674,68 @@ paths:
       summary: 更新用户信息
       tags:
       - 用户
+  /users/system/nodeUserActive:
+    get:
+      consumes:
+      - application/json
+      description: 激活节点用户
+      parameters:
+      - description: 节点用户ID
+        in: query
+        name: nodeUserId
+        required: true
+        type: string
+      - description: 节点用户激活码
+        in: query
+        name: nodeUserActiveCode
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.DefaultResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.DefaultResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.DefaultResponse'
+      summary: 激活节点用户
+      tags:
+      - Node
+  /users/system/register:
+    post:
+      consumes:
+      - application/json
+      description: 注册节点用户
+      parameters:
+      - description: 注册节点用户请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/requests.RegisterUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.DefaultResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.DefaultResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.DefaultResponse'
+      summary: 注册节点用户
+      tags:
+      - Node
 swagger: "2.0"
