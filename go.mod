@@ -6,7 +6,7 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/labstack/echo/v4 v4.13.4
 	github.com/nats-io/nats.go v1.45.0
-	github.com/stardustagi/TopLib v0.0.24
+	github.com/stardustagi/TopLib v0.0.25
 	github.com/swaggo/swag v1.16.6
 	github.com/volcengine/volc-sdk-golang v1.0.228
 	go.uber.org/zap v1.27.0

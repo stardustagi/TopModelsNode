@@ -1,8 +1,13 @@
 {
     "swagger": "2.0",
     "info": {
-        "contact": {}
+        "description": "This is the backend services for TopModelsLogin, providing user management and LLM",
+        "title": "TopModelsLogin Backend Service",
+        "contact": {},
+        "version": "1.0"
     },
+    "host": "localhost:8081",
+    "basePath": "/api",
     "paths": {
         "/node/llm/addModelsInfos": {
             "post": {

@@ -1,3 +1,4 @@
+basePath: /api
 definitions:
   requests.AddModelsInfoRequest:
     properties:
@@ -326,8 +327,13 @@ definitions:
       username:
         type: string
     type: object
+host: localhost:8081
 info:
   contact: {}
+  description: This is the backend services for TopModelsLogin, providing user management
+    and LLM
+  title: TopModelsLogin Backend Service
+  version: "1.0"
 paths:
   /node/llm/addModelsInfos:
     post:

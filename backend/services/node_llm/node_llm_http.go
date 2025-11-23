@@ -65,6 +65,7 @@ func NewNodeHttpService() *NodeHttpService {
 		ctx:       ctx,
 		cancelCtx: cancel,
 		dao:       databases.GetDao(),
+		stopCh:    make(chan struct{}),
 		rds: redis.NewRedisView(redis.GetRedisDb(),
 			constants.NodeUserKeyPrefix,
 			logs.GetLogger("NodeUserRedis")),
@@ -116,12 +117,9 @@ func (n *NodeHttpService) Stop() {
 }
 
 func (n *NodeHttpService) initialization() {
-	if constants.Debug {
-		n.app.AddGroup("node/llm", server.Request(), server.Cors(), backend.NodeAccess())
-	} else {
-		n.app.AddGroup("node/llm", server.Request(), backend.NodeAccess())
-	}
-	n.app.AddPostHandler("node/llm", server.NewHandler(
+	n.app.AddGroup("node/llm", server.Request(), backend.NodeAccess())
+	n.app.AddGroup("node/public", server.Request())
+	n.app.AddPostHandler("node/public", server.NewHandler(
 		"nodeKeepLive",
 		[]string{"nodeKeepLive", "public"},
 		n.NodeLogin))

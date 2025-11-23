@@ -81,23 +81,17 @@ func (nus *NodeUsersHttpService) Stop() {
 }
 
 func (nus *NodeUsersHttpService) initialization() {
-	// 创建公开路由组（不需要 NodeAccess 鉴权）
-	if constants.Debug {
-		nus.app.AddGroup("users/system", server.Request(), server.Cors())
-		nus.app.AddGroup("users", server.Request(), server.Cors(), backend.NodeUserAccess())
-	} else {
-		nus.app.AddGroup("users/system", server.Request())
-		nus.app.AddGroup("users", server.Request(), server.Cors(), backend.NodeUserAccess())
-	}
+	nus.app.AddGroup("users/public", server.Request())
+	nus.app.AddGroup("users", server.Request(), server.Cors(), backend.NodeUserAccess())
 
 	// 注册公开接口：用户注册和登录
-	nus.app.AddPostHandler("users/system", server.NewHandler(
+	nus.app.AddPostHandler("users/public", server.NewHandler(
 		"register",
 		[]string{"Users", "用户注册"},
 		nus.NodeUserRegister,
 	))
 
-	nus.app.AddPostHandler("users/system", server.NewHandler(
+	nus.app.AddPostHandler("users/public", server.NewHandler(
 		"login",
 		[]string{"Users", "用户登录"},
 		nus.LoginFromByEmail,
@@ -116,7 +110,7 @@ func (nus *NodeUsersHttpService) initialization() {
 		nus.GetUserInfo,
 	))
 
-	nus.app.AddGetHandler("users/system", server.NewHandler(
+	nus.app.AddGetHandler("users/public", server.NewHandler(
 		"nodeUserActive",
 		[]string{"user", "active"},
 		nus.NodeUserActive,
