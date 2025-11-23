@@ -36,3 +36,7 @@ func NodeAccessModelsKey(nodeId string) string {
 func NodeUserAccessTokenKey(nodeUserId int64) string {
 	return fmt.Sprintf("nodeUser:token:%d", nodeUserId)
 }
+
+func ModelsNodeKeepLiveKey(nodeName string) string {
+	return fmt.Sprintf("modelsNode:keepLive:%s", nodeName)
+}

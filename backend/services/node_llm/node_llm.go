@@ -7,99 +7,38 @@ import (
 	"strings"
 	"time"
 
-	"github.com/stardustagi/TopLib/libs/databases"
 	"github.com/stardustagi/TopLib/libs/redis"
-	"github.com/stardustagi/TopLib/libs/uuid"
 	"github.com/stardustagi/TopModelsNode/constants"
 	"github.com/stardustagi/TopModelsNode/models"
 	"go.uber.org/zap"
 )
 
-// writeModelInfo2Db 保存模型信息到数据库
-func (n *NodeHttpService) writeModelInfo2Db(nodeId, address string, modelsInfo []ModelInfo) (bool, error) {
-	n.logger.Info("SaveModelInfo2Db called")
-	// 数据库会话
-	transactionSession := databases.NewSessionWrapper(n.dao)
-	upsetModelsInfo := make([]*models.ModelsInfo, 0, len(modelsInfo))
-	upsetProvider := make([]*models.ModelsProvider, 0)
-	for _, modelInfo := range modelsInfo {
-		model := &models.ModelsInfo{
-			ModelId:     modelInfo.ID,
-			NodeId:      nodeId,
-			Name:        modelInfo.Name,
-			ApiVersion:  modelInfo.APIVersion,
-			DeployName:  modelInfo.DeployName,
-			InputPrice:  modelInfo.InputPrice,
-			OutputPrice: modelInfo.OutputPrice,
-			CachePrice:  modelInfo.CachePrice,
-			Status:      modelInfo.Status,
-			Address:     address,
-			LastUpdate:  time.Now().Unix(),
-		}
-		upsetModelsInfo = append(upsetModelsInfo, model)
+func (n *NodeHttpService) updateNodeKeepLive(nodeName string, keepInfo []NodeKeepLiveInfo) error {
+	n.logger.Info("updateModelKeepLive called", zap.String("nodeId", nodeName))
 
-		for _, provider := range modelInfo.Providers {
-			providerModel := &models.ModelsProvider{
-				ModelId:     model.ModelId,
-				Type:        provider.Type,
-				Name:        provider.Name,
-				Endpoint:    provider.Endpoint,
-				ApiType:     provider.APIType,
-				ApiKeys:     strings.Join(provider.APIKeys, ","),
-				ModelName:   provider.ModelName,
-				NodeId:      nodeId,
-				ProviderId:  provider.ID,
-				InputPrice:  provider.InputPrice,
-				OutputPrice: provider.OutputPrice,
-				CachePrice:  provider.CachePrice,
-				LastUpdate:  time.Now().Unix(),
-			}
-			upsetProvider = append(upsetProvider, providerModel)
+	_ = n.rds.Expire(n.ctx, nodeName, constants.ModelsNodeExpireTimeString)
+	modelKeepLiveKey := constants.ModelsNodeKeepLiveKey(nodeName)
+	for _, info := range keepInfo {
+		keepLiveDataBytes, err := json.Marshal(info)
+		if err != nil {
+			n.logger.Error("模型KeepLive信息序列化失败", zap.Error(err), zap.String("modelName", info.ModelName))
+			return err
+		}
+		err = n.rds.HSet(n.ctx, modelKeepLiveKey, info.ModelName, keepLiveDataBytes)
+		if err != nil {
+			n.logger.Error("写入Redis模型KeepLive信息失败", zap.Error(err), zap.String("modelName", info.ModelName))
+			return err
 		}
 	}
-	trErr := transactionSession.Execute(func(session databases.SessionDao) error {
-		// 逐个插入模型信息
-		for _, model := range upsetModelsInfo {
-			_, err := session.Upsert(
-				&models.ModelsInfo{ModelId: model.ModelId, NodeId: model.NodeId},
-				model)
-			if err != nil {
-				n.logger.Error("保存模型信息到数据库失败", zap.Error(err))
-				return err
-			}
-		}
-		return nil
-	}).Execute(func(session databases.SessionDao) error {
-		// 逐个插入提供商信息
-		for _, provider := range upsetProvider {
-			_, err := session.Upsert(&models.ModelsProvider{ModelId: provider.ModelId, NodeId: provider.NodeId}, provider)
-			if err != nil {
-				n.logger.Error("保存模型提供商信息到数据库失败", zap.Error(err))
-				return err
-			}
-		}
-		return nil
-	}).CommitAndClose()
+	_ = n.rds.Expire(n.ctx, modelKeepLiveKey, constants.ModelsNodeExpireTimeString)
 
-	if trErr != nil {
-		n.logger.Error("数据库事务执行失败", zap.Error(trErr))
-		return false, trErr
-	}
-
-	// 假设保存成功
-	n.logger.Info("模型信息保存到数据库成功")
-	return true, nil
+	n.logger.Info("模型KeepLive信息更新成功", zap.String("nodeId", nodeName))
+	return nil
 }
 
 // writeModelInfo2Redis 保存模型信息到Redis
-func (n *NodeHttpService) writeModelInfo2Redis(nodeId, address string, modelsInfo []ModelInfo) (bool, error) {
-	n.logger.Info("SaveModelInfo2Redis called", zap.String("nodeId", nodeId))
-
-	// 写入node address
-	if err := n.rds.HSet(n.ctx, nodeId, "address", []byte(address)); err != nil {
-		n.logger.Error("写入节点地址到Redis失败", zap.Error(err), zap.String("nodeId", nodeId), zap.String("address", address))
-		return false, err
-	}
+func (n *NodeHttpService) writeModelInfo2Redis(nodeName string, modelsInfo []ModelInfo) (bool, error) {
+	n.logger.Info("SaveModelInfo2Redis called", zap.String("nodeId", nodeName), zap.Int("modelCount", len(modelsInfo)))
 
 	// 写入redis
 	for _, model := range modelsInfo {
@@ -109,52 +48,88 @@ func (n *NodeHttpService) writeModelInfo2Redis(nodeId, address string, modelsInf
 			n.logger.Error("模型序列化失败", zap.Error(err), zap.String("modelId", model.ID))
 			return false, err
 		}
-		err = n.rds.HSet(n.ctx, nodeId, modelKey, modelData)
+		err = n.rds.HSet(n.ctx, nodeName, modelKey, modelData)
 		if err != nil {
 			n.logger.Error("写入Redis失败", zap.Error(err), zap.String("modelId", model.ID))
 			return false, err
 		}
+		_ = n.rds.Expire(n.ctx, nodeName, constants.ModelsNodeExpireTimeString)
+		// 增加KeepLive key
+		modelKeepLiveKey := constants.ModelsNodeKeepLiveKey(nodeName)
+		keepLiveData := NodeKeepLiveInfo{
+			ModelName:  model.Name,
+			Metrics:    model.Metrics,
+			ExpireTime: model.ExpireTime,
+			KeepLive:   time.Now().Unix(),
+		}
+		keepLiveDataBytes, err := json.Marshal(keepLiveData)
+		if err != nil {
+			n.logger.Error("模型KeepLive信息序列化失败", zap.Error(err), zap.String("modelId", model.ID))
+			return false, err
+		}
+		err = n.rds.HSet(n.ctx, modelKeepLiveKey, modelKey, keepLiveDataBytes)
+		if err != nil {
+			n.logger.Error("写入Redis模型KeepLive信息失败", zap.Error(err), zap.String("modelId", model.ID))
+			return false, err
+		}
+		_ = n.rds.Expire(n.ctx, modelKeepLiveKey, constants.ModelsNodeExpireTimeString)
 	}
-	_ = n.rds.Expire(n.ctx, nodeId, constants.ModelsNodeExpireTimeString)
 
-	n.logger.Info("模型信息保存到Redis成功", zap.String("nodeId", nodeId))
+	n.logger.Info("模型信息保存到Redis成功", zap.String("nodeId", nodeName), zap.Int("modelCount", len(modelsInfo)))
 	return true, nil
 }
 
 // readModelInfo2DB 从数据库读取模型信息
-func (n *NodeHttpService) readModelInfo2DB(nodeId string) (string, []ModelInfo, error) {
-	n.logger.Info("readModelInfo2DB called", zap.String("nodeId", nodeId))
-
-	// 查询模型信息
-	var modelsInfoList []*models.ModelsInfo
-	var nodeAddress string
-	err := n.dao.FindMany(&modelsInfoList, "id ASC", &models.ModelsInfo{NodeId: nodeId})
+func (n *NodeHttpService) readModelInfo2DB(nodeName string) ([]ModelInfo, error) {
+	n.logger.Info("readModelInfo2DB called", zap.String("nodeName", nodeName))
+	session := n.dao.NewSession()
+	defer session.Close()
+	// 1. 查询所有映射
+	var mapInfos []models.NodeModelsInfoMaps
+	err := session.FindMany(&mapInfos, "id desc", &models.NodeModelsInfoMaps{NodeName: nodeName})
 	if err != nil {
-		n.logger.Error("查询模型信息失败", zap.Error(err), zap.String("nodeId", nodeId))
-		return "", nil, err
+		return nil, err
 	}
 
-	// 查询提供商信息
-	var providersMap = make(map[string][]*models.ModelsProvider)
-	for _, modelInfo := range modelsInfoList {
-		var providers []*models.ModelsProvider
-		err := n.dao.FindMany(&providers, "id ASC", &models.ModelsProvider{
-			ModelId: modelInfo.ModelId,
-			NodeId:  nodeId,
-		})
-		if err != nil {
-			n.logger.Error("查询提供商信息失败", zap.Error(err),
-				zap.String("modelId", modelInfo.ModelId),
-				zap.String("nodeId", nodeId))
+	// 2. 按ModelId分组聚合ProviderId
+	modelProvidersMap := make(map[int64][]int64)
+	for _, m := range mapInfos {
+		modelProvidersMap[m.ModelId] = append(modelProvidersMap[m.ModelId], m.ModelProviderId)
+	}
+
+	var modelInfos []ModelInfo
+	for modelId, providerIds := range modelProvidersMap {
+		// 查模型
+		dbModel := &models.ModelsInfo{Id: modelId}
+		ok, err := session.FindOne(dbModel)
+		if !ok || err != nil {
 			continue
 		}
-		providersMap[modelInfo.ModelId] = providers
-	}
 
-	// 转换为ModelInfo结构
-	var modelInfos []ModelInfo
-	for _, dbModel := range modelsInfoList {
-		modelInfo := ModelInfo{
+		// 查所有provider
+		var providers []Provider
+		for _, pid := range providerIds {
+			dbProvider := &models.ModelsProvider{Id: pid}
+			ok, err := session.FindOne(dbProvider)
+			if !ok || err != nil {
+				continue
+			}
+			providers = append(providers, Provider{
+				ID:          dbProvider.ProviderId,
+				Type:        dbProvider.Type,
+				Name:        dbProvider.Name,
+				Endpoint:    dbProvider.Endpoint,
+				APIType:     dbProvider.ApiType,
+				APIKeys:     strings.Split(dbProvider.ApiKeys, ","),
+				ModelName:   dbProvider.ModelName,
+				InputPrice:  dbProvider.InputPrice,
+				OutputPrice: dbProvider.OutputPrice,
+				CachePrice:  dbProvider.CachePrice,
+			})
+		}
+
+		// 组装ModelInfo
+		modelInfos = append(modelInfos, ModelInfo{
 			ID:          dbModel.ModelId,
 			Name:        dbModel.Name,
 			APIVersion:  dbModel.ApiVersion,
@@ -162,196 +137,57 @@ func (n *NodeHttpService) readModelInfo2DB(nodeId string) (string, []ModelInfo, 
 			InputPrice:  dbModel.InputPrice,
 			OutputPrice: dbModel.OutputPrice,
 			CachePrice:  dbModel.CachePrice,
+			Address:     dbModel.Address,
 			Status:      dbModel.Status,
-			Providers:   make([]Provider, 0),
-		}
-		if nodeAddress == "" {
-			nodeAddress = dbModel.Address
-		}
-		// 添加提供商信息
-		if providers, exists := providersMap[dbModel.ModelId]; exists {
-			for _, dbProvider := range providers {
-				provider := Provider{
-					ID:          dbProvider.ProviderId,
-					Type:        dbProvider.Type,
-					Name:        dbProvider.Name,
-					Endpoint:    dbProvider.Endpoint,
-					APIType:     dbProvider.ApiType,
-					ModelName:   dbProvider.ModelName,
-					InputPrice:  dbProvider.InputPrice,
-					OutputPrice: dbProvider.OutputPrice,
-					CachePrice:  dbProvider.CachePrice,
-				}
-
-				// 解析API Keys
-				if dbProvider.ApiKeys != "" {
-					provider.APIKeys = strings.Split(dbProvider.ApiKeys, ",")
-				}
-
-				modelInfo.Providers = append(modelInfo.Providers, provider)
-			}
-		}
-
-		modelInfos = append(modelInfos, modelInfo)
+			ApiStyles:   strings.Split(dbModel.ApiStyles, ","),
+			Providers:   providers,
+		})
 	}
+	return modelInfos, nil
 
-	n.logger.Info("从数据库读取模型信息成功",
-		zap.String("nodeId", nodeId),
-		zap.Int("modelCount", len(modelInfos)))
-
-	return nodeAddress, modelInfos, nil
 }
 
 // readModelInfo2Redis 从Redis读取模型信息
-func (n *NodeHttpService) readModelInfo2Redis(nodeId string) (string, []ModelInfo, error) {
-	n.logger.Info("readModelInfo2Redis called", zap.String("nodeId", nodeId))
-
-	// key := fmt.Sprintf("%s:%s", constants.ModelsKeyPrefix, nodeId)
+func (n *NodeHttpService) readModelInfo2Redis(nodeName string) ([]ModelInfo, error) {
+	n.logger.Info("readModelInfo2Redis called", zap.String("nodeName", nodeName))
 
 	// 检查Key是否存在
-	exists, err := n.rds.Exists(n.ctx, nodeId)
+	exists, err := n.rds.Exists(n.ctx, nodeName)
 	if err != nil && !errors.Is(err, redis.Nil) {
-		n.logger.Error("检查Redis Key失败", zap.Error(err), zap.String("nodeId", nodeId))
-		return "", nil, err
+		n.logger.Error("检查Redis Key失败", zap.Error(err), zap.String("nodeName", nodeName))
+		return nil, err
 	}
 
 	if !exists {
-		n.logger.Info("Redis中不存在该节点的模型信息", zap.String("nodeId", nodeId))
-		return "", []ModelInfo{}, nil
+		n.logger.Info("Redis中不存在该节点的模型信息", zap.String("nodeName", nodeName))
+		return []ModelInfo{}, nil
 	}
 
 	// 获取所有字段
-	modelDataMap, err := n.rds.HGetAll(n.ctx, nodeId)
+	modelDataMap, err := n.rds.HGetAll(n.ctx, nodeName)
 	if err != nil {
-		n.logger.Error("从Redis读取模型信息失败", zap.Error(err), zap.String("nodeId", nodeId))
-		return "", nil, err
+		n.logger.Error("从Redis读取模型信息失败", zap.Error(err), zap.String("nodeName", nodeName))
+		return nil, err
 	}
-	address := ""
 	var modelInfos []ModelInfo
 	for modelId, modelData := range modelDataMap {
-		if modelId == "address" {
-			address = string(modelData)
-			continue
-		}
 		var modelInfo ModelInfo
 		err := json.Unmarshal(modelData, &modelInfo)
 		if err != nil {
 			n.logger.Error("模型信息反序列化失败",
 				zap.Error(err),
 				zap.String("modelId", modelId),
-				zap.String("nodeId", nodeId))
+				zap.String("nodeName", nodeName))
 			continue
 		}
 		modelInfos = append(modelInfos, modelInfo)
 	}
 
 	n.logger.Info("从Redis读取模型信息成功",
-		zap.String("nodeId", nodeId),
+		zap.String("nodeName", nodeName),
 		zap.Int("modelCount", len(modelInfos)))
 
-	return address, modelInfos, nil
-}
-
-// GetModelInfo 获取模型信息（优先从Redis读取，Redis不存在则从数据库读取并缓存到Redis）
-func (n *NodeHttpService) GetModelInfo(nodeId string) (string, []ModelInfo, error) {
-	n.logger.Info("GetModelInfo called", zap.String("nodeId", nodeId))
-	var nodeAddress string
-	// 首先尝试从Redis读取
-	address, modelInfos, err := n.readModelInfo2Redis(nodeId)
-	if err != nil {
-		n.logger.Warn("从Redis读取模型信息失败，尝试从数据库读取",
-			zap.Error(err),
-			zap.String("nodeId", nodeId))
-	} else if len(modelInfos) > 0 {
-		n.logger.Info("从Redis成功读取模型信息",
-			zap.String("nodeId", nodeId),
-			zap.Int("modelCount", len(modelInfos)))
-		return address, modelInfos, nil
-	}
-
-	// Redis中没有数据，从数据库读取
-	nodeAddress, modelInfos, err = n.readModelInfo2DB(nodeId)
-	if err != nil {
-		n.logger.Error("从数据库读取模型信息失败",
-			zap.Error(err),
-			zap.String("nodeId", nodeId))
-		return "", nil, err
-	}
-
-	// 将数据库中的数据缓存到Redis
-	if len(modelInfos) > 0 {
-		// key := fmt.Sprintf("%s:%s", constants.ModelsKeyPrefix, nodeId)
-		success, err := n.writeModelInfo2Redis(nodeAddress, nodeId, modelInfos)
-		if !success || err != nil {
-			n.logger.Warn("缓存模型信息到Redis失败",
-				zap.Error(err),
-				zap.String("nodeId", nodeId))
-		}
-	}
-
-	n.logger.Info("获取模型信息成功",
-		zap.String("nodeId", nodeId),
-		zap.Int("modelCount", len(modelInfos)))
-
-	return nodeAddress, modelInfos, nil
-}
-
-// DeleteModelInfo 删除模型信息（同时删除Redis和数据库中的数据）
-func (n *NodeHttpService) DeleteModelInfo(nodeId string) error {
-	n.logger.Info("DeleteModelInfo called", zap.String("nodeId", nodeId))
-
-	// 删除Redis中的数据
-	_, err := n.rds.Del(n.ctx, nodeId)
-	if err != nil {
-		n.logger.Error("删除Redis中的模型信息失败", zap.Error(err), zap.String("nodeId", nodeId))
-	}
-
-	// 删除数据库中的数据
-	transactionSession := databases.NewSessionWrapper(n.dao)
-	err = transactionSession.Execute(func(session databases.SessionDao) error {
-		// 删除提供商信息
-		_, err := session.Delete(&models.ModelsProvider{NodeId: nodeId})
-		if err != nil {
-			n.logger.Error("删除数据库中的提供商信息失败", zap.Error(err), zap.String("nodeId", nodeId))
-			return err
-		}
-		return nil
-	}).Execute(func(session databases.SessionDao) error {
-		// 删除模型信息
-		_, err := session.Delete(&models.ModelsInfo{NodeId: nodeId})
-		if err != nil {
-			n.logger.Error("删除数据库中的模型信息失败", zap.Error(err), zap.String("nodeId", nodeId))
-			return err
-		}
-		return nil
-	}).Commit()
-
-	if err != nil {
-		n.logger.Error("删除模型信息事务执行失败", zap.Error(err), zap.String("nodeId", nodeId))
-		return err
-	}
-
-	n.logger.Info("删除模型信息成功", zap.String("nodeId", nodeId))
-	return nil
-}
-
-// GetAllNodesModelInfo 获取所有节点的模型信息
-func (n *NodeHttpService) GetAllNodesModelInfo(page databases.Pageable) ([][]map[string]interface{}, error) {
-	n.logger.Info("GetAllNodesModelInfo called")
-
-	session := n.dao.NewSession()
-	defer session.Close()
-	// 查询所有模型信息
-	//var result []*responses.ModelWithProviderResp
-	//err := session.Query(&result, "call GetModelsWithProviders(?,?,?)", page.Limit(), page.Skip(), page.Sort())
-	result, err := session.CallProcedure("GetModelsWithProviders", page.Limit(), page.Skip(), page.Sort())
-	if err != nil {
-		n.logger.Error("查询所有模型信息失败", zap.Error(err))
-		return nil, err
-	}
-
-	n.logger.Info("获取所有节点模型信息成功", zap.Int("nodeCount", len(result)))
-	return result, nil
+	return modelInfos, nil
 }
 
 // IsRunning 检查服务是否正在运行
@@ -413,82 +249,38 @@ func (n *NodeHttpService) unRegisterNodes(nodeId string) (bool, error) {
 	return true, nil
 }
 
-// keepAliveNodes 模型节点心跳 - 批量更新多个节点的心跳状态
-func (n *NodeHttpService) keepAliveNodes(nodeId, address string, nodeModels []ModelInfo) (map[string]bool, error) {
-	if len(nodeModels) == 0 {
-		n.logger.Warn("节点心跳调用时，模型列表为空", zap.String("nodeId", nodeId))
-		return map[string]bool{nodeId: false}, fmt.Errorf("模型列表不能为空")
-	}
-	n.logger.Info("LLMKeepAliveNodes called", zap.Int("modelCount", len(nodeModels)))
-
-	results := make(map[string]bool)
-
-	// 设置模型状态为请求中的状态（保持一致）
-	for i := range nodeModels {
-		if nodeModels[i].Status == "" {
-			nodeModels[i].Status = "online"
-		}
-	}
-
-	// 更新Redis TTL为1小时
-	nodeAccessKey := constants.NodeAccessModelsKey(nodeId)
-	err := n.rds.Expire(n.ctx, nodeAccessKey, constants.ModelsNodeExpireTimeString)
-	if err != nil {
-		n.logger.Error("更新Redis TTL失败", zap.Error(err), zap.String("nodeId", nodeId))
-	}
-
-	// 重新设置Redis数据
-	success, err := n.writeModelInfo2Redis(nodeId, address, nodeModels)
-	if err != nil || !success {
-		n.logger.Error("更新Redis模型信息失败", zap.Error(err), zap.String("nodeId", nodeId))
-		results[nodeId] = false
-		return results, err
-	}
-
-	// 更新数据库中的数据状态
-	success, err = n.writeModelInfo2Db(nodeId, address, nodeModels)
-	if err != nil || !success {
-		n.logger.Error("更新数据库模型信息失败", zap.Error(err), zap.String("nodeId", nodeId))
-		results[nodeId] = false
-		return results, err
-	}
-
-	n.logger.Info("节点心跳更新成功",
-		zap.String("nodeId", nodeId),
-		zap.Int("modelCount", len(nodeModels)))
-	results[nodeId] = true
-
-	return results, nil
-}
-
-// UserAddAccessKeyAndSecurityKey 添加节点用户的AccessKey和SecurityKey
-func (n *NodeHttpService) UserAddAccessKeyAndSecurityKey(nodeUserId int64) (bool, error) {
-	accessKey := uuid.GenString(16)
-	secretKey := uuid.GenString(16)
-	key := &models.NodeKeys{
-		NodeUserId:  nodeUserId,
-		AccessKey:   accessKey,
-		SecurityKey: secretKey,
+// NodeUpsetAccessKeyAndSecurityKey 添加节点用户的AccessKey和SecurityKey
+func (n *NodeHttpService) NodeUpsetAccessKeyAndSecurityKey(nodeInfo NodeInfo) (*models.Nodes, error) {
+	bean := &models.Nodes{
+		NodeUserId: nodeInfo.NodeUserId,
+		Name:       nodeInfo.Name,
 	}
 	session := n.dao.NewSession()
-	ok, err := session.Exists(key)
+	ok, err := session.FindOne(bean)
 	if err != nil {
-		n.logger.Debug("数据库查询错误", zap.Error(err), zap.Int64("node user", nodeUserId))
-		return false, err
+		n.logger.Error("检查节点是否存在失败",
+			zap.Error(err),
+			zap.Int64("nodeUserId", nodeInfo.NodeUserId))
+		return nil, err
 	}
-	if ok {
-		n.logger.Info("节点用户已存在AccessKey和SecurityKey，请勿重复", zap.Int64("node user", nodeUserId),
-			zap.String("accessKey", accessKey),
-			zap.String("securityKey", secretKey))
-		return false, fmt.Errorf("节点用户已存在AccessKey和SecurityKey，请勿重复")
+	if !ok {
+		n.logger.Warn("节点不存在，无法添加AccessKey和SecurityKey",
+			zap.Int64("nodeUserId", nodeInfo.NodeUserId))
+		return nil, fmt.Errorf("节点不存在")
 	}
-	key.LastupdateAt = time.Now().Unix()
-	_, err = session.InsertOne(key)
+	bean.AccessKey = nodeInfo.AccessKey
+	bean.SecurityKey = nodeInfo.SecretKey
+	bean.LastupdateAt = time.Now().Unix()
+	_, err = session.UpdateById(bean.Id, bean)
 	if err != nil {
-		n.logger.Debug("数据库插入错误", zap.Error(err), zap.Int64("node user", nodeUserId))
-		return false, err
+		n.logger.Error("更新节点AccessKey和SecurityKey失败",
+			zap.Error(err),
+			zap.Int64("nodeUserId", nodeInfo.NodeUserId))
+		return nil, err
 	}
-	return true, nil
+	n.logger.Info("节点AccessKey和SecurityKey更新成功",
+		zap.Int64("nodeUserId", nodeInfo.NodeUserId))
+	return bean, nil
 }
 
 // NodeCheckin 在线Node检查
@@ -505,4 +297,52 @@ func (n *NodeHttpService) NodeCheckin(nodeId string) (bool, error) {
 		return false, err
 	}
 	return true, nil
+}
+
+// getNodeIdModelsInfo 获取节点的模型信息
+func (n *NodeHttpService) getNodeIdModelsInfo(name string) ([]ModelInfo, error) {
+	n.logger.Info("GetNodeIdModelsInfo called", zap.String("nodeName", name))
+
+	// 首先尝试从Redis读取
+	modelInfos, err := n.readModelInfo2Redis(name)
+	if err != nil {
+		n.logger.Warn("从Redis读取模型信息失败，尝试从数据库读取",
+			zap.Error(err),
+			zap.String("nodeId", name))
+	} else if len(modelInfos) > 0 {
+		n.logger.Info("从Redis成功读取模型信息",
+			zap.String("nodeId", name),
+			zap.Int("modelCount", len(modelInfos)))
+		return modelInfos, nil
+	}
+
+	// Redis中没有数据，从数据库读取
+	modelInfos, err = n.readModelInfo2DB(name)
+	if err != nil {
+		n.logger.Error("从数据库读取模型信息失败",
+			zap.Error(err),
+			zap.String("nodeId", name))
+		return nil, err
+	}
+
+	// 将数据库中的数据缓存到Redis
+	if len(modelInfos) > 0 {
+		// key := fmt.Sprintf("%s:%s", constants.ModelsKeyPrefix, nodeId)
+		success, err := n.writeModelInfo2Redis(name, modelInfos)
+		if !success || err != nil {
+			n.logger.Warn("缓存模型信息到Redis失败",
+				zap.Error(err),
+				zap.String("nodeId", name))
+		}
+	}
+
+	n.logger.Info("获取模型信息成功",
+		zap.String("nodeId", name),
+		zap.Int("modelCount", len(modelInfos)))
+
+	for _, modelInfo := range modelInfos {
+		modelInfos = append(modelInfos, modelInfo)
+	}
+
+	return modelInfos, nil
 }

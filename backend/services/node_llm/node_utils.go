@@ -31,8 +31,8 @@ func (n *NodeHttpService) updateNodeUser(nodeUser *models.NodeUsers) error {
 	return err
 }
 
-// generateNodeUserToken 生成用户Token
-func (n *NodeHttpService) generateNodeUserToken(ak, once string, nodeUserId int64) (string, string, error) {
+// generateNodeLoginToken 生成用户Token
+func (n *NodeHttpService) generateNodeLoginToken(ak, once string, nodeUserId int64) (string, string, error) {
 	// 生成Token
 	n.logger.Info("生成节点用户Token", zap.Int64("nodeUserId", nodeUserId), zap.String("accessKey", ak), zap.String("once", once))
 
@@ -47,7 +47,7 @@ func (n *NodeHttpService) generateNodeUserToken(ak, once string, nodeUserId int6
 	token := uuid.GenBytes(32)
 	err = n.rds.Set(n.ctx, nodeUserKey, token, constants.NodeUserTokenExpireTimeString)
 	// 查找Ak对应的Sk
-	keyModel := &models.NodeKeys{
+	keyModel := &models.Nodes{
 		AccessKey:  ak,
 		NodeUserId: nodeUserId,
 	}
@@ -57,12 +57,12 @@ func (n *NodeHttpService) generateNodeUserToken(ak, once string, nodeUserId int6
 		n.logger.Error("查找节点用户密钥失败", zap.Error(err), zap.String("accessKey", ak))
 		return "", "", fmt.Errorf("节点用户密钥不存在，请联系管理员")
 	}
-	if keyModel.NodeId == "" {
+	if keyModel.Name == "" {
 		n.logger.Debug("新节点，需要生成节点ID", zap.String("accessKey", ak))
-		keyModel.NodeId = uuid.GetUuidString()
+		keyModel.Name = uuid.GetUuidString()
 	}
 	// 设置节点用户密钥到Redis
-	nodeAccessKey := constants.NodeAccessModelsKey(keyModel.NodeId)
+	nodeAccessKey := constants.NodeAccessModelsKey(keyModel.Name)
 	if err = n.rds.HSet(n.ctx, nodeAccessKey, "token", []byte(token)); err != nil {
 		n.logger.Error("保存节点用户Token到Redis失败", zap.Error(err), zap.String("nodeAccessKey", nodeAccessKey))
 		return "", "", err
@@ -89,7 +89,7 @@ func (n *NodeHttpService) generateNodeUserToken(ak, once string, nodeUserId int6
 		return "", "", err
 	}
 	// 组装密钥
-	jwtKey := fmt.Sprintf("%s-%s-%s-%s", ak, keyModel.SecurityKey, once, keyModel.NodeId)
+	jwtKey := fmt.Sprintf("%s-%s-%s-%s", ak, keyModel.SecurityKey, once, keyModel.Name)
 	jwtString := jwt.JWTEncrypt(fmt.Sprintf("%d", nodeUserId), string(token), jwtKey)
 
 	// 更新数据库
@@ -102,7 +102,7 @@ func (n *NodeHttpService) generateNodeUserToken(ak, once string, nodeUserId int6
 		_, err = n.rds.Del(n.ctx, nodeAccessKey)
 		return "", "", err
 	}
-	return keyModel.NodeId, jwtString, nil
+	return keyModel.Name, jwtString, nil
 }
 
 func (n *NodeHttpService) generateNodeUserJwt(nodeUserId int64) (string, string, error) {
@@ -226,7 +226,7 @@ func (n *NodeHttpService) handleModelKeyExpiration(expiredKey string) error {
 		zap.String("nodeId", nodeId))
 
 	// 从数据库查找对应的模型信息
-	_, modelInfos, err := n.readModelInfo2DB(nodeId)
+	modelInfos, err := n.readModelInfo2DB(nodeId)
 	if err != nil {
 		n.logger.Error("从数据库读取模型信息失败",
 			zap.Error(err),
@@ -352,11 +352,13 @@ func (n *NodeHttpService) checkNodeIdExists(nodeId int64) bool {
 	return true
 }
 
-func (n *NodeHttpService) ownerNodeCheck(nodeUserId int64, nodeId string) (bool, error) {
-	n.logger.Info("LLMUserOwnerNodeCheck called", zap.Int64("nodeUserId", nodeUserId), zap.String("nodeId", nodeId))
-	nodeKeysModel := &models.NodeKeys{
+func (n *NodeHttpService) ownerNodeCheck(nodeUserId int64, name string) (bool, error) {
+	n.logger.Info("LLMUserOwnerNodeCheck called",
+		zap.Int64("nodeUserId", nodeUserId),
+		zap.String("nodeId", name))
+	nodeKeysModel := &models.Nodes{
 		NodeUserId: nodeUserId,
-		NodeId:     nodeId,
+		Name:       name,
 	}
 	session := n.dao.NewSession()
 	defer session.Close()

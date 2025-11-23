@@ -1,0 +1,89 @@
+{
+  "models": [
+    {
+      "id": "66393329663",
+      "name": "qwen3-32b",
+      "api_version": "",
+      "deploy_name": "",
+      "input_price": 110,
+      "output_price": 220,
+      "cache_price": 70,
+      "provider_name": "local",
+      "status": "1",
+      "api_styles": [
+        "chat",
+        "responses",
+        "image",
+        "video",
+        "gemini",
+        "anthropic"
+      ],
+      "providers": [
+        {
+          "id": "3231231292",
+          "type": "primary",
+          "name": "qwen",
+          "endpoint": "https://dashscope.aliyuncs.com/compatible-mode/v1/",
+          "api_type": "openai",
+          "api_keys": ["sk-578f8146f9404a2089cb9ceb7c35cce8"],
+          "model_name": "qwen3-32b",
+          "input_price": 110,
+          "output_price": 220,
+          "cache_price": 70
+        }
+      ]
+    },
+    {
+      "id": "66393329664",
+      "name": "qwen-plus",
+      "api_version": "",
+      "deploy_name": "",
+      "input_price": 110,
+      "output_price": 220,
+      "cache_price": 70,
+      "provider_name": "local",
+      "status": "1",
+      "providers": [
+        {
+          "id": "3231231292",
+          "type": "primary",
+          "name": "qwen",
+          "endpoint": "https://dashscope.aliyuncs.com/compatible-mode/v1/",
+          "api_type": "openai",
+          "api_keys": ["sk-578f8146f9404a2089cb9ceb7c35cce8"],
+          "model_name": "qwen-plus",
+          "input_price": 110,
+          "output_price": 220,
+          "cache_price": 70
+        }
+      ]
+    },
+    {
+      "id": "66393329665",
+      "name": "Claude-Sonnet-3.5",
+      "api_version": "",
+      "deploy_name": "",
+      "input_price": 110,
+      "output_price": 220,
+      "cache_price": 70,
+      "provider_name": "local",
+      "status": "1",
+      "providers": [
+        {
+          "id": "3231231292",
+          "type": "primary",
+          "name": "qwen",
+          "endpoint": "https://bedrock-runtime.us-east-1.amazonaws.com/model/us.anthropic.claude-3-5-haiku-20241022-v1:0/invoke-with-response-stream",
+          "api_type": "aws_anthropic",
+          "api_keys": [
+            "ABSKQmVkcm9ja0FQSUtleS00b2d6LWF0LTEwODUwMDk3MDAyNzpPQXM2eE5JVGFvVG1iVEgxK2t5TFVQYVJLbEVjbEw0U2VrYitmM1dYNmlnOXlZQWVvTjNXLy85UVJrMD0="
+          ],
+          "model_name": "us.anthropic.claude-3-5-haiku-20241022-v1:0",
+          "input_price": 110,
+          "output_price": 220,
+          "cache_price": 70
+        }
+      ]
+    }
+  ]
+}

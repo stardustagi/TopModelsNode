@@ -8,11 +8,14 @@ import (
 
 type Nodes struct {
 	Id           int64  `json:"id" xorm:"'id' pk autoincr BIGINT(12)"`
-	Ids          string `json:"ids" xorm:"'ids' VARCHAR(24)"`
+	Name         string `json:"name" xorm:"'name' VARCHAR(24)"`
 	NodeUserId   int64  `json:"node_user_id" xorm:"'node_user_id' BIGINT(12)"`
 	CreatedAt    int64  `json:"created_at" xorm:"'created_at' BIGINT(12)"`
 	LastupdateAt int64  `json:"lastupdate_at" xorm:"'lastupdate_at' BIGINT(12)"`
 	Domain       string `json:"domain" xorm:"'domain' VARCHAR(128)"`
+	AccessKey    string `json:"access_key" xorm:"'access_key' comment('ak') VARCHAR(255)"`
+	SecurityKey  string `json:"security_key" xorm:"'security_key' comment('sk') VARCHAR(255)"`
+	CompanyId    int64  `json:"company_id" xorm:"'company_id' comment('企业ID') BIGINT(12)"`
 }
 
 func (o *Nodes) TableName() string {

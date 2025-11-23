@@ -84,10 +84,10 @@ func (nus *NodeUsersHttpService) initialization() {
 	// 创建公开路由组（不需要 NodeAccess 鉴权）
 	if constants.Debug {
 		nus.app.AddGroup("users/system", server.Request(), server.Cors())
-		nus.app.AddGroup("users", server.Request(), server.Cors(), backend.NodeAccess())
+		nus.app.AddGroup("users", server.Request(), server.Cors(), backend.NodeUserAccess())
 	} else {
 		nus.app.AddGroup("users/system", server.Request())
-		nus.app.AddGroup("users", server.Request(), server.Cors(), backend.NodeAccess())
+		nus.app.AddGroup("users", server.Request(), server.Cors(), backend.NodeUserAccess())
 	}
 
 	// 注册公开接口：用户注册和登录
@@ -542,4 +542,10 @@ func (nus *NodeUsersHttpService) NodeCheckUserBalanceHandler(c echo.Context, req
 	resp.WalletType = req.WalletType
 	resp.WalletAddress = wallet.WalletAddress
 	return protocol.Response(c, nil, resp)
+}
+
+func (nus *NodeUsersHttpService) AddModelInfo(ctx echo.Context, req requests.AddModelsInfoRequest, resp responses.DefaultResponse) error {
+	nus.logger.Info("AddModelInfo called")
+	llmService := node_llm.GetNodeHttpServiceInstance()
+	return llmService.UpsetModelsInfos(ctx, req, resp)
 }

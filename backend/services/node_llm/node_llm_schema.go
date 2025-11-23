@@ -9,18 +9,29 @@ type ModelConfig struct {
 
 // ModelInfo 模型信息结构
 type ModelInfo struct {
-	ID          string       `json:"id"`
-	Name        string       `json:"name"`
-	APIVersion  string       `json:"api_version"`
-	DeployName  string       `json:"deploy_name"`
-	InputPrice  int          `json:"input_price"`  // 销售价
-	OutputPrice int          `json:"output_price"` // 销售价
-	CachePrice  int          `json:"cache_price"`  // 销售价
-	Providers   []Provider   `json:"providers"`
-	Status      string       `json:"status"`      // 模型状态
-	Metrics     ModelMetrics `json:"metrics"`     // 模型指标
-	ExpireTime  int64        `json:"expire_time"` // 模型过期时间
-	KeepLive    int64        `json:"keep_live"`   // 模型最后上报时间
+	ID          string     `json:"id"`
+	Name        string     `json:"name"`
+	APIVersion  string     `json:"api_version"`
+	DeployName  string     `json:"deploy_name"`
+	InputPrice  int        `json:"input_price"`  // 销售价
+	OutputPrice int        `json:"output_price"` // 销售价
+	CachePrice  int        `json:"cache_price"`  // 销售价
+	Providers   []Provider `json:"providers"`
+	Status      string     `json:"status"`     // 模型状态
+	Address     string     `json:"address"`    // 模型地址
+	ApiStyles   []string   `json:"api_styles"` // 支持的API风格列表
+
+	// 上报信息
+	Metrics    ModelMetrics `json:"metrics"`     // 模型指标
+	ExpireTime int64        `json:"expire_time"` // 模型过期时间
+	KeepLive   int64        `json:"keep_live"`   // 模型最后上报时间
+}
+
+type NodeKeepLiveInfo struct {
+	ModelName  string       `json:"model_name"`
+	Metrics    ModelMetrics `json:"metrics"`
+	ExpireTime int64        `json:"expire_time"` // 模型过期时间
+	KeepLive   int64        `json:"keep_live"`   // 模型最后上报时间
 }
 
 // ModelMetrics 模型指标
@@ -105,4 +116,17 @@ type LLMUsageReport struct {
 	Stream           bool       `json:"stream"`
 	CreatedAt        int64      `json:"created_at"`
 	IsPrivate        int        `json:"is_private"` // 是否私有模型
+}
+
+// NodeInfo节点信息
+type NodeInfo struct {
+	Id           int64  `json:"id" gorm:"primaryKey;autoIncrement"`
+	Name         string `json:"name" gorm:"type:varchar(100);not null;uniqueIndex"`
+	NodeUserId   int64  `json:"node_user_id"`
+	CreatedAt    int64  `json:"created_at"`
+	LastUpdateAt int64  `json:"lastupdate_at"`
+	Domain       string `json:"domain"`
+	AccessKey    string `json:"access_key"`
+	SecretKey    string `json:"secret_key"`
+	CompanyId    int64  `json:"company_id"`
 }

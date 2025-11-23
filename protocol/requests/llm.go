@@ -17,6 +17,15 @@ type AddModelsInfoRequest struct {
 	ModelsInfos []ModelsInfo `json:"models_infos"`
 }
 
+type UpsetNodeInfoRequest struct {
+	Name       string `json:"name"`
+	NodeUserId int64  `json:"node_user_id"`
+	Domain     string `json:"domain"`
+	AccessKey  string `json:"access_key"`
+	SecretKey  string `json:"secret_key"`
+	CompanyId  int64  `json:"company_id"`
+}
+
 type ModelsProviderInfo struct {
 	Type        string `json:"type" validate:"required"`
 	Name        string `json:"name" validate:"required"`
@@ -39,22 +48,17 @@ type MapModelsProviderInfoToNodeRequest struct {
 	ProviderIds []int64 `json:"provider_ids" validate:"required"`
 }
 
-type UpsetNodeInfoRequest struct {
-	NodeUserId int64  `json:"node_user_id" validate:"required"`
-	Code       string `json:"code"`
-	Domain     string `json:"domain"`
-}
-
 type ListNodeInfoRequest struct {
 	NodeUserId int64   `json:"node_user_id"`
 	PageInfo   PageReq `json:"page_info"`
 }
 
-type NodeRegisterReq struct {
+type NodeLoginReq struct {
 	Mail        string `json:"mail" validate:"required,email"`
 	Password    string `json:"password" validate:"required,min=6"`
 	AccessToken string `json:"access_token"`
-	Once        string `json:"once"`
+	//Name        string `json:"name"`
+	Once string `json:"once"`
 }
 
 // TokenUsage 记录 token 使用情况

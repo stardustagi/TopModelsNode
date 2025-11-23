@@ -118,22 +118,22 @@ func (n *NodeHttpService) Stop() {
 
 func (n *NodeHttpService) initialization() {
 	if constants.Debug {
-		n.app.AddGroup("node/llm", server.Request(), backend.NodeAccess(), server.Cors())
+		n.app.AddGroup("node/llm", server.Request(), server.Cors(), backend.NodeAccess())
 	} else {
 		n.app.AddGroup("node/llm", server.Request(), backend.NodeAccess())
 	}
 	n.app.AddPostHandler("node/llm", server.NewHandler(
 		"nodeKeepLive",
 		[]string{"nodeKeepLive", "public"},
-		n.NodeKeepLive))
+		n.NodeLogin))
 	n.app.AddPostHandler("node/llm", server.NewHandler(
-		"AddModelsInfos",
+		"UpsetModelsInfos",
 		[]string{"llm", "node"},
-		n.AddModelsInfos))
+		n.UpsetModelsInfos))
 	n.app.AddPostHandler("node/llm", server.NewHandler(
-		"AddModelsProvider",
+		"UpsetModelsProvider",
 		[]string{"llm", "node"},
-		n.AddModelsProvider))
+		n.UpsetModelsProvider))
 	n.app.AddPostHandler("node/llm", server.NewHandler(
 		"MapModelsProviderInfoToNode",
 		[]string{"llm", "node"},
@@ -156,7 +156,7 @@ func (n *NodeHttpService) initialization() {
 		n.NodeUnregister))
 }
 
-// AddModelsInfos 添加模型信息
+// UpsetModelsInfos 添加模型信息
 // godoc
 // 添加模型信息
 // @Summary 添加模型信息
@@ -169,48 +169,41 @@ func (n *NodeHttpService) initialization() {
 // @Failure 400 {object} responses.DefaultResponse
 // @Failure 500 {object} responses.DefaultResponse
 // @Router /node/llm/addModelsInfos [post]
-func (n *NodeHttpService) AddModelsInfos(ctx echo.Context,
+func (n *NodeHttpService) UpsetModelsInfos(ctx echo.Context,
 	req requests.AddModelsInfoRequest,
 	resp responses.DefaultResponse) error {
 	session := n.dao.NewSession()
 	defer session.Close()
-	// 1. 检查模型是否存在
 	modelsInfos := make([]*models.ModelsInfo, len(req.ModelsInfos))
 	for _, modelInfo := range req.ModelsInfos {
-		m := &models.ModelsInfo{
+		where := &models.ModelsInfo{
 			Name:       modelInfo.Name,
 			ApiVersion: modelInfo.ApiVersion,
 		}
-		ok, err := session.FindOne(m)
+		bean := &models.ModelsInfo{
+			Name:        modelInfo.Name,
+			ApiVersion:  modelInfo.ApiVersion,
+			DeployName:  modelInfo.DeployName,
+			InputPrice:  modelInfo.InputPrice,
+			OutputPrice: modelInfo.OutputPrice,
+			CachePrice:  modelInfo.CachePrice,
+			Status:      modelInfo.Status,
+			IsPrivate:   modelInfo.IsPrivate,
+			OwnerId:     modelInfo.OwnerId,
+			Address:     modelInfo.Address,
+			LastUpdate:  time.Now().Unix(),
+		}
+		_, err := session.Upsert(where, bean)
 		if err != nil {
 			n.logger.Info("databases error：", zap.Error(err))
 			continue
 		}
-		if ok {
-			continue
-		}
-		// 不存在的模型添加
-		m.DeployName = modelInfo.DeployName
-		m.InputPrice = modelInfo.InputPrice
-		m.OutputPrice = modelInfo.OutputPrice
-		m.CachePrice = modelInfo.CachePrice
-		m.Status = modelInfo.Status
-		m.IsPrivate = modelInfo.IsPrivate
-		m.OwnerId = modelInfo.OwnerId
-		m.Address = modelInfo.Address
-		m.LastUpdate = time.Now().Unix()
-		num, err := session.InsertOne(m)
-		if err != nil {
-			n.logger.Info("databases error：", zap.Error(err))
-			continue
-		}
-		modelsInfos = append(modelsInfos, m)
-		n.logger.Info("insert success", zap.Int64("id", num))
+		modelsInfos = append(modelsInfos, bean)
 	}
 	return protocol.Response(ctx, nil, modelsInfos)
 }
 
-// AddModelsProvider 添加模型供应商
+// UpsetModelsProvider 添加模型供应商
 // godoc
 // @Summary 添加模型供应商
 // @Description 添加模型供应商
@@ -220,38 +213,36 @@ func (n *NodeHttpService) AddModelsInfos(ctx echo.Context,
 // @Param request body requests.AddModelsProviderInfoRequest true "请求参数"
 // @Success 200 {object} responses.DefaultResponse
 // @Router /node/llm/addModelsProvider [post]
-func (n *NodeHttpService) AddModelsProvider(ctx echo.Context,
+func (n *NodeHttpService) UpsetModelsProvider(ctx echo.Context,
 	req requests.AddModelsProviderInfoRequest,
 	resp responses.DefaultResponse) error {
-	n.logger.Info("AddModelsProvider is Called", zap.Any("req", req))
+	n.logger.Info("UpsetModelsProvider is Called", zap.Any("req", req))
 	session := n.dao.NewSession()
 	defer session.Close()
 	// 1. 检查模型服务商是否存在
 	modelsProviders := make([]*models.ModelsProvider, len(req.ModelsProviderInfo))
 	for _, v := range req.ModelsProviderInfo {
-		modelsProvider := &models.ModelsProvider{
+		where := &models.ModelsProvider{
 			Name:     v.Name,
 			Type:     v.Type,
 			Endpoint: v.Endpoint,
 		}
-		ok, err := session.FindOne(modelsProvider)
+		bean := &models.ModelsProvider{
+			Name:        v.Name,
+			Type:        v.Type,
+			Endpoint:    v.Endpoint,
+			ApiType:     v.ApiType,
+			ModelName:   v.ModelName,
+			InputPrice:  v.InputPrice,
+			OutputPrice: v.OutputPrice,
+			CachePrice:  v.CachePrice,
+			ApiKeys:     v.ApiKeys,
+			LastUpdate:  time.Now().Unix(),
+		}
+		modelsProvider := &models.ModelsProvider{}
+		_, err := session.Upsert(where, bean)
 		if err != nil {
 			n.logger.Info("databases error：", zap.Error(err))
-			continue
-		}
-		if ok {
-			continue
-		}
-		// 不存在的模型添加
-		modelsProvider.ApiType = v.ApiType
-		modelsProvider.ModelName = v.ModelName
-		modelsProvider.InputPrice = v.InputPrice
-		modelsProvider.OutputPrice = v.OutputPrice
-		modelsProvider.CachePrice = v.CachePrice
-		modelsProvider.ApiKeys = v.ApiKeys
-		modelsProvider.LastUpdate = time.Now().Unix()
-		if _, err := session.InsertOne(modelsProvider); err != nil {
-			n.logger.Info("databases error:", zap.Error(err))
 			continue
 		}
 		modelsProviders = append(modelsProviders, modelsProvider)
@@ -303,10 +294,10 @@ func (n *NodeHttpService) MapModelsProviderInfoToNode(ctx echo.Context,
 	return protocol.Response(ctx, nil, fmt.Sprintf("update success %d", count))
 }
 
-// UpsetNodeInfos 添加/更新模型信息
+// UpsetNodeInfos 添加/更新节点信息
 // godoc
-// @Summary 添加/更新模型信息
-// @Description 添加/更新模型信息
+// @Summary 添加/更新节点信息
+// @Description 添加/更新节点信息
 // @Tags node
 // @Accept json
 // @Produce json
@@ -319,20 +310,23 @@ func (n *NodeHttpService) UpsetNodeInfos(ctx echo.Context,
 	n.logger.Info("call UpsetNodeInfos", zap.Any("req", req))
 	session := n.dao.NewSession()
 	defer session.Close()
-	if req.Code == "" {
-		req.Code = uuid.GenString(12)
+	if req.Name == "" {
+		req.Name = uuid.GenString(12)
 	}
 	where := &models.Nodes{
-		Ids:        req.Code,
+		Name:       req.Name,
 		NodeUserId: req.NodeUserId,
 	}
-	node := &models.Nodes{
-		Ids:          req.Code,
+	bean := &models.Nodes{
+		Name:         req.Name,
 		NodeUserId:   req.NodeUserId,
+		AccessKey:    req.AccessKey,
+		SecurityKey:  req.SecretKey,
 		LastupdateAt: time.Now().Unix(),
 		Domain:       req.Domain,
+		CompanyId:    req.CompanyId,
 	}
-	if _, err := session.Upsert(where, node); err != nil {
+	if _, err := session.Upsert(where, bean); err != nil {
 		n.logger.Info("databases error:", zap.Error(err))
 		return protocol.Response(ctx, constants.ErrInternalServer.AppendErrors(err), nil)
 	}
@@ -369,8 +363,8 @@ func (n *NodeHttpService) ListNodeInfos(ctx echo.Context,
 	return protocol.Response(ctx, nil, result)
 }
 
-// NodeKeepLive 节点登录
-func (n *NodeHttpService) NodeKeepLive(ctx echo.Context, req requests.NodeRegisterReq, resp responses.NodeRegisterResp) error {
+// NodeLogin 节点登录
+func (n *NodeHttpService) NodeLogin(ctx echo.Context, req requests.NodeLoginReq, resp responses.NodeLoginResp) error {
 	n.logger.Info("NodeLogin called", zap.String("nodeUserLogin", req.Mail))
 
 	nodeUser := &models.NodeUsers{
@@ -395,15 +389,22 @@ func (n *NodeHttpService) NodeKeepLive(ctx echo.Context, req requests.NodeRegist
 	n.logger.Info("节点用户登录成功", zap.String("email", nodeUser.Email))
 
 	// 生成Token
-	nodeId, jwtToken, err := n.generateNodeUserToken(req.AccessToken, req.Once, nodeUser.Id)
+	name, jwtToken, err := n.generateNodeLoginToken(req.AccessToken, req.Once, nodeUser.Id)
 	if err != nil {
 		n.logger.Error("节点用户Token生成失败", zap.String("email", nodeUser.Email), zap.Error(err))
 		return protocol.Response(ctx, constants.ErrAuthFailed.AppendErrors(err), nil)
 	}
-	resp.NodeId = nodeId
+	// 查找 name
+	resp.NodeName = name
 	resp.Jwt = jwtToken
 	resp.Once = req.Once
 	resp.AccessKey = req.AccessToken
+	modelsConfigs, err := n.getNodeIdModelsInfo(name)
+	if err != nil {
+		n.logger.Error("获取节点模型配置失败", zap.String("nodeName", name), zap.Error(err))
+		return protocol.Response(ctx, constants.ErrInternalServer.AppendErrors(err), nil)
+	}
+	resp.Config = modelsConfigs
 	return protocol.Response(ctx, nil, resp)
 }
 

@@ -1,8 +1,10 @@
 package responses
 
-type NodeRegisterResp struct {
-	NodeId    string `json:"node_id"`
+type NodeLoginResp struct {
+	NodeName  string `json:"node_name"`
+	Ids       string `json:"ids"`
 	Jwt       string `json:"jwt"`
 	AccessKey string `json:"access_key"`
 	Once      string `json:"once"`
+	Config    any    `json:"config"`
 }

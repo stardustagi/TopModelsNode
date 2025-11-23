@@ -7,12 +7,13 @@ import (
 )
 
 type NodeModelsInfoMaps struct {
-	Id              int64 `json:"id" xorm:"'id' pk autoincr BIGINT(12)"`
-	NodeId          int64 `json:"node_id" xorm:"'node_id' BIGINT(12)"`
-	ModelId         int64 `json:"model_id" xorm:"'model_id' BIGINT(12)"`
-	ModelProviderId int64 `json:"model_provider_id" xorm:"'model_provider_id' BIGINT(12)"`
-	CreatedAt       int64 `json:"created_at" xorm:"'created_at' BIGINT(12)"`
-	UpdatedAt       int64 `json:"updated_at" xorm:"'updated_at' BIGINT(12)"`
+	Id              int64  `json:"id" xorm:"'id' pk autoincr BIGINT(12)"`
+	NodeId          int64  `json:"node_id" xorm:"'node_id' BIGINT(12)"`
+	NodeName        string `json:"node_name" xorm:"'node_name' VARCHAR(64)"`
+	ModelId         int64  `json:"model_id" xorm:"'model_id' BIGINT(12)"`
+	ModelProviderId int64  `json:"model_provider_id" xorm:"'model_provider_id' BIGINT(12)"`
+	CreatedAt       int64  `json:"created_at" xorm:"'created_at' BIGINT(12)"`
+	UpdatedAt       int64  `json:"updated_at" xorm:"'updated_at' BIGINT(12)"`
 }
 
 func (o *NodeModelsInfoMaps) TableName() string {
