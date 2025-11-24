@@ -725,3 +725,33 @@ func (nus *NodeUsersHttpService) UpsetNodeInfos(ctx echo.Context,
 	}
 	return protocol.Response(ctx, nil, "success")
 }
+
+// ListNodeInfos 获取模型信息
+// godoc
+// @Summary 获取模型信息
+// @Description 获取模型信息
+// @Tags node
+// @Accept json
+// @Produce json
+// @Param request body requests.ListNodeInfoRequest true "请求参数"
+// @Success 200 {object} responses.DefaultResponse
+// @Router /node/llm/listNodeInfos [post]
+func (nus *NodeUsersHttpService) ListNodeInfos(ctx echo.Context,
+	req requests.ListNodeInfoRequest,
+	resp responses.DefaultResponse) error {
+	nus.logger.Info("List Node Infos call", zap.Any("req", req))
+	session := nus.dao.NewSession()
+	defer session.Close()
+	// 默认排序
+	if req.PageInfo.Sort == "" {
+		req.PageInfo.Sort = "node_id asc"
+	}
+	result, err := session.CallProcedure("ListNodeUserNodeInfos",
+		req.NodeUserId, req.PageInfo.Skip, req.PageInfo.Limit, req.PageInfo.Sort)
+	if err != nil {
+		nus.logger.Error("ListNodeUserNodeInfos error:", zap.Error(err))
+		return protocol.Response(ctx, constants.ErrInternalServer.AppendErrors(err), nil)
+	}
+
+	return protocol.Response(ctx, nil, result)
+}
