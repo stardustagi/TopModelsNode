@@ -332,7 +332,7 @@ func (n *NodeHttpService) extractNodeIdFromKey(key string) string {
 	return ""
 }
 
-func (n *NodeHttpService) checkModelIdExists(modelId int64) bool {
+func (n *NodeHttpService) CheckModelIdExists(modelId int64) bool {
 	modelInfo := &models.ModelsInfo{}
 	ok, err := n.dao.FindById(modelId, modelInfo)
 	if err != nil || !ok {
@@ -342,7 +342,7 @@ func (n *NodeHttpService) checkModelIdExists(modelId int64) bool {
 	return true
 }
 
-func (n *NodeHttpService) checkNodeIdExists(nodeId int64) bool {
+func (n *NodeHttpService) CheckNodeIdExists(nodeId int64) bool {
 	nodeInfo := &models.Nodes{}
 	ok, err := n.dao.FindById(nodeId, nodeInfo)
 	if err != nil || !ok {

@@ -127,6 +127,22 @@ func (nus *NodeUsersHttpService) initialization() {
 		[]string{"Users", "用户列表"},
 		nus.ListUsers,
 	))
+	nus.app.AddPostHandler("users", server.NewHandler(
+		"upsetModelsInfos",
+		[]string{"node", "llm", "addModelsInfos"},
+		nus.UpsetModelsInfos))
+	nus.app.AddPostHandler("users", server.NewHandler(
+		"upsetModelsProvider",
+		[]string{"node", "llm", "addModelsProvider"},
+		nus.UpsetModelsProvider))
+	nus.app.AddPostHandler("users", server.NewHandler(
+		"upsetNodeInfos",
+		[]string{"node", "llm", "upsetNodeInfos"},
+		nus.UpsetNodeInfos))
+	nus.app.AddPostHandler("users", server.NewHandler(
+		"MapModelsProviderInfoToNode",
+		[]string{"node", "llm", "MapModelsProviderInfoToNode"},
+		nus.MapModelsProviderInfoToNode))
 }
 
 // NodeUserRegister 注册节点用户
@@ -537,8 +553,175 @@ func (nus *NodeUsersHttpService) NodeCheckUserBalanceHandler(c echo.Context, req
 	return protocol.Response(c, nil, resp)
 }
 
-func (nus *NodeUsersHttpService) AddModelInfo(ctx echo.Context, req requests.AddModelsInfoRequest, resp responses.DefaultResponse) error {
-	nus.logger.Info("AddModelInfo called")
-	llmService := node_llm.GetNodeHttpServiceInstance()
-	return llmService.UpsetModelsInfos(ctx, req, resp)
+// UpsetModelsInfos @Tags node/llm
+// @Accept json
+// @Produce json
+// @Param request body requests.AddModelsInfoRequest true "请求参数"
+// @Success 200 {object} responses.DefaultResponse
+// @Failure 400 {object} responses.DefaultResponse
+// @Failure 500 {object} responses.DefaultResponse
+// @Router /node/llm/addModelsInfos [post]
+func (nus *NodeUsersHttpService) UpsetModelsInfos(ctx echo.Context,
+	req requests.AddModelsInfoRequest,
+	resp responses.DefaultResponse) error {
+	session := nus.dao.NewSession()
+	defer session.Close()
+	modelsInfos := make([]*models.ModelsInfo, len(req.ModelsInfos))
+	for _, modelInfo := range req.ModelsInfos {
+		where := &models.ModelsInfo{
+			Name:       modelInfo.Name,
+			ApiVersion: modelInfo.ApiVersion,
+		}
+		bean := &models.ModelsInfo{
+			Name:        modelInfo.Name,
+			ApiVersion:  modelInfo.ApiVersion,
+			DeployName:  modelInfo.DeployName,
+			InputPrice:  modelInfo.InputPrice,
+			OutputPrice: modelInfo.OutputPrice,
+			CachePrice:  modelInfo.CachePrice,
+			Status:      modelInfo.Status,
+			IsPrivate:   modelInfo.IsPrivate,
+			OwnerId:     modelInfo.OwnerId,
+			Address:     modelInfo.Address,
+			LastUpdate:  time.Now().Unix(),
+		}
+		_, err := session.Upsert(where, bean)
+		if err != nil {
+			nus.logger.Info("databases error：", zap.Error(err))
+			continue
+		}
+		modelsInfos = append(modelsInfos, bean)
+	}
+	return protocol.Response(ctx, nil, modelsInfos)
+}
+
+// UpsetModelsProvider 添加模型供应商
+// godoc
+// @Summary 添加模型供应商
+// @Description 添加模型供应商
+// @Tags NodeLLM
+// @Accept json
+// @Produce json
+// @Param request body requests.AddModelsProviderInfoRequest true "请求参数"
+// @Success 200 {object} responses.DefaultResponse
+// @Router /node/llm/addModelsProvider [post]
+func (nus *NodeUsersHttpService) UpsetModelsProvider(ctx echo.Context,
+	req requests.AddModelsProviderInfoRequest,
+	resp responses.DefaultResponse) error {
+	nus.logger.Info("UpsetModelsProvider is Called", zap.Any("req", req))
+	session := nus.dao.NewSession()
+	defer session.Close()
+	// 1. 检查模型服务商是否存在
+	modelsProviders := make([]*models.ModelsProvider, len(req.ModelsProviderInfo))
+	for _, v := range req.ModelsProviderInfo {
+		where := &models.ModelsProvider{
+			Name:     v.Name,
+			Type:     v.Type,
+			Endpoint: v.Endpoint,
+		}
+		bean := &models.ModelsProvider{
+			Name:        v.Name,
+			Type:        v.Type,
+			Endpoint:    v.Endpoint,
+			ApiType:     v.ApiType,
+			ModelName:   v.ModelName,
+			InputPrice:  v.InputPrice,
+			OutputPrice: v.OutputPrice,
+			CachePrice:  v.CachePrice,
+			ApiKeys:     v.ApiKeys,
+			LastUpdate:  time.Now().Unix(),
+		}
+		modelsProvider := &models.ModelsProvider{}
+		_, err := session.Upsert(where, bean)
+		if err != nil {
+			nus.logger.Info("databases error：", zap.Error(err))
+			continue
+		}
+		modelsProviders = append(modelsProviders, modelsProvider)
+	}
+	return protocol.Response(ctx, nil, modelsProviders)
+}
+
+// MapModelsProviderInfoToNode 映射模型和模型供应商
+// godoc
+// @Summary 映射模型和模型供应商
+// @Description 映射模型和模型供应商
+// @Tags NodeLLM
+// @Accept json
+// @Produce json
+// @Param request body requests.MapModelsProviderInfoToNodeRequest true "请求参数"
+// @Success 200 {object} responses.DefaultResponse
+// @Router /node/llm/mapModelsProviderInfoToNode [post]
+func (nus *NodeUsersHttpService) MapModelsProviderInfoToNode(ctx echo.Context,
+	req requests.MapModelsProviderInfoToNodeRequest,
+	resp responses.DefaultResponse) error {
+	nus.logger.Info("call MapModelsProviderInfoToNode", zap.Any("req", req))
+	session := nus.dao.NewSession()
+	defer session.Close()
+	llmSrv := node_llm.GetNodeHttpServiceInstance()
+	// 检查Node和mode的合法师
+	if !(llmSrv.CheckModelIdExists(req.ModelId) && llmSrv.CheckNodeIdExists(req.NodeId)) {
+		return protocol.Response(ctx, nil, "node or model not exists")
+	}
+	// 设置条件
+	where := &models.NodeModelsInfoMaps{
+		NodeId:  req.NodeId,
+		ModelId: req.ModelId,
+	}
+	count := 0
+	for _, providerIds := range req.ProviderIds {
+		nodeModelsInfoMap := &models.NodeModelsInfoMaps{
+			NodeId:          req.NodeId,
+			ModelId:         req.ModelId,
+			ModelProviderId: providerIds,
+			CreatedAt:       time.Now().Unix(),
+			UpdatedAt:       time.Now().Unix(),
+		}
+		if _, err := session.Upsert(where, nodeModelsInfoMap); err != nil {
+			nus.logger.Info("databases error:", zap.Error(err))
+			continue
+		} else {
+			count++
+		}
+	}
+	return protocol.Response(ctx, nil, fmt.Sprintf("update success %d", count))
+}
+
+// UpsetNodeInfos 添加/更新节点信息
+// godoc
+// @Summary 添加/更新节点信息
+// @Description 添加/更新节点信息
+// @Tags node
+// @Accept json
+// @Produce json
+// @Param request body requests.UpsetNodeInfoRequest true "请求参数"
+// @Success 200 {object} responses.DefaultResponse
+// @Router /node/llm/upsetNodeInfos [post]
+func (nus *NodeUsersHttpService) UpsetNodeInfos(ctx echo.Context,
+	req requests.UpsetNodeInfoRequest,
+	resp responses.DefaultResponse) error {
+	nus.logger.Info("call UpsetNodeInfos", zap.Any("req", req))
+	session := nus.dao.NewSession()
+	defer session.Close()
+	if req.Name == "" {
+		req.Name = uuid.GenString(12)
+	}
+	where := &models.Nodes{
+		Name:       req.Name,
+		NodeUserId: req.NodeUserId,
+	}
+	bean := &models.Nodes{
+		Name:         req.Name,
+		NodeUserId:   req.NodeUserId,
+		AccessKey:    req.AccessKey,
+		SecurityKey:  req.SecretKey,
+		LastupdateAt: time.Now().Unix(),
+		Domain:       req.Domain,
+		CompanyId:    req.CompanyId,
+	}
+	if _, err := session.Upsert(where, bean); err != nil {
+		nus.logger.Info("databases error:", zap.Error(err))
+		return protocol.Response(ctx, constants.ErrInternalServer.AppendErrors(err), nil)
+	}
+	return protocol.Response(ctx, nil, "success")
 }

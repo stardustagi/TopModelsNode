@@ -32,7 +32,7 @@ clean:
 # 构建 Docker 镜像的目标
 docker:
 	@echo "Building Docker image..."
-	docker build -t ghcr.io/stardustagi/topModelsNode:latest .
+	docker build -t ghcr.io/stardustagi/topmodelsnode:latest .
 
 # 这里的.PHONY 表示这些目标都是“伪目标”
 .PHONY: all linux windows clean docker
