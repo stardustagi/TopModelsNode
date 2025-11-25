@@ -25,8 +25,8 @@ type RegisterUserResponse struct {
 // LoginUserResponse 用户登录响应
 type LoginUserResponse struct {
 	UserInfo UserInfoResponse `json:"user_info"`
-	Token    string           `json:"token"`
-	ExpireAt time.Time        `json:"expire_at"`
+	Jwt      string           `json:"jwt"`
+	ExpireAt string           `json:"expire_at"`
 }
 
 // RefreshTokenResponse 刷新Token响应

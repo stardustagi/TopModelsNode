@@ -294,14 +294,14 @@ func (nus *NodeUsersHttpService) LoginFromByEmail(c echo.Context, req requests.L
 	}
 
 	// 5. 生成JWT token
-	token, expireTime, err := nus.generateJWTToken(user.Id, user.Email)
+	token, jwtString, err := nus.generateJWTToken(user.Id)
 	if err != nil {
 		nus.logger.Error("generate jwt token failed", zap.Error(err))
 		return protocol.Response(c, errors.New("生成Token失败", http.StatusInternalServerError), nil)
 	}
 
 	// 6. 缓存Token到Redis
-	if err := nus.cacheUserToken(user.Id, token, expireTime); err != nil {
+	if err := nus.cacheUserToken(user.Id, token, constants.NodeUserTokenExpire); err != nil {
 		nus.logger.Warn("cache user token failed", zap.Error(err))
 	}
 
@@ -320,9 +320,11 @@ func (nus *NodeUsersHttpService) LoginFromByEmail(c echo.Context, req requests.L
 	}
 
 	// 9. 返回响应
+	c.Response().Header().Add("jwt", jwtString)
+	c.Response().Header().Add("id", fmt.Sprintf("%d", user.Id))
 	resp.UserInfo = nus.convertToUserInfoResponse(user)
-	resp.Token = token
-	resp.ExpireAt = expireTime
+	resp.Jwt = token
+	resp.ExpireAt = constants.NodeUserTokenExpire
 
 	nus.logger.Info("user logged in successfully", zap.Int64("userId", user.Id))
 	return protocol.Response(c, nil, resp)

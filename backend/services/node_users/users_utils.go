@@ -12,6 +12,7 @@ import (
 
 	"github.com/stardustagi/TopLib/libs/jwt"
 	"github.com/stardustagi/TopLib/libs/redis"
+	"github.com/stardustagi/TopLib/libs/uuid"
 	"github.com/stardustagi/TopModelsNode/constants"
 	"github.com/stardustagi/TopModelsNode/models"
 	"github.com/stardustagi/TopModelsNode/protocol/responses"
@@ -51,35 +52,36 @@ func (nus *NodeUsersHttpService) hashPassword(password, salt string) string {
 }
 
 // 辅助方法：生成JWT Token
-func (nus *NodeUsersHttpService) generateJWTToken(userID int64, email string) (string, time.Time, error) {
-	// 解析过期时间
-	duration, err := time.ParseDuration(constants.NodeUserJwtExpire)
+func (nus *NodeUsersHttpService) generateJWTToken(userId int64) (string, string, error) {
+	// 生成JWT token
+	token := uuid.GetUuidString()
+	jwtKey := fmt.Sprintf("%s-%s-%d", constants.AppName, constants.AppVersion, userId)
+	jwtString := jwt.JWTEncrypt(fmt.Sprintf("%d", userId), token, jwtKey)
+
+	// 存储到Redis
+	key := constants.NodeUserTokenKey(userId)
+	err := nus.rds.Set(nus.ctx, key, []byte(token), constants.NodeUserTokenExpire)
 	if err != nil {
-		nus.logger.Error("parse jwt expire duration failed", zap.Error(err))
-		duration = 720 * time.Hour // 默认30天
+		nus.logger.Error("Failed to store Token in Redis", zap.Error(err), zap.String("key", key))
+		return "", "", fmt.Errorf("failed to store JWT: %w", err)
 	}
-
-	expireTime := time.Now().Add(duration)
-
-	// 简单的token生成（生产环境应该使用标准的JWT库）
-	tokenData := fmt.Sprintf("%d:%s:%d", userID, email, expireTime.Unix())
-	hash := md5.New()
-	hash.Write([]byte(tokenData))
-	token := hex.EncodeToString(hash.Sum(nil))
-
-	return token, expireTime, nil
+	key = constants.NodeUserJwtKey(userId)
+	err = nus.rds.Set(nus.ctx, key, []byte(jwtString), constants.NodeUserJwtExpire)
+	if err != nil {
+		nus.logger.Error("Failed to store JWT in Redis", zap.Error(err), zap.String("key", key))
+		return "", "", fmt.Errorf("failed to store JWT: %w", err)
+	}
+	return token, jwtString, nil
 }
 
 // 辅助方法：缓存用户Token
-func (nus *NodeUsersHttpService) cacheUserToken(userID int64, token string, expireTime time.Time) error {
+func (nus *NodeUsersHttpService) cacheUserToken(userID int64, token, expireTime string) error {
 	nus.mu.Lock()
 	defer nus.mu.Unlock()
 
 	key := constants.NodeUserTokenKey(userID)
-	duration := time.Until(expireTime)
-	durationStr := fmt.Sprintf("%ds", int(duration.Seconds()))
 
-	err := nus.rds.Set(nus.ctx, key, []byte(token), durationStr)
+	err := nus.rds.Set(nus.ctx, key, []byte(token), expireTime)
 	if err != nil {
 		nus.logger.Error("cache user token failed", zap.Error(err), zap.Int64("userID", userID))
 		return err
