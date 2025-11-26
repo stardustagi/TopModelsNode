@@ -739,7 +739,7 @@ func (nus *NodeUsersHttpService) ListNodeInfos(ctx echo.Context,
 		req.PageInfo.Sort = "node_id asc"
 	}
 	result, err := session.CallProcedure("ListNodeUserNodeInfos",
-		req.NodeUserId, req.PageInfo.Skip, req.PageInfo.Limit, req.PageInfo.Sort)
+		req.NodeUserId, req.PageInfo.Limit, req.PageInfo.Skip, req.PageInfo.Sort)
 	if err != nil {
 		nus.logger.Error("ListNodeUserNodeInfos error:", zap.Error(err))
 		return protocol.Response(ctx, constants.ErrInternalServer.AppendErrors(err), nil)

@@ -9,65 +9,61 @@ CREATE PROCEDURE ListNodeUserNodeInfos(
     IN p_order_by VARCHAR(255)
 )
 BEGIN
-    DECLARE done INT DEFAULT 0;
-    DECLARE v_model_ids TEXT;
+    -- 查询节点和节点用户的关联信息
+    -- 如果 p_order_by 为空，默认按 nodes.id 降序排序
+    SET @order_clause = IF(p_order_by IS NOT NULL AND p_order_by <> '',
+                          CONCAT(' ORDER BY ', p_order_by),
+                          ' ORDER BY n.id DESC');
 
-    -- 游标遍历 user_models_infos，只取 model_ids
-    DECLARE cur CURSOR FOR
-SELECT model_ids
-FROM user_models_infos
-WHERE user_id = p_user_id;
-
-DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = 1;
-
-    -- 临时表存放最终结果
-    CREATE TEMPORARY TABLE IF NOT EXISTS tmp_user_models (
-        id BIGINT,
-        node_id VARCHAR(64),
-        node_user_id
+    -- 构建主查询 SQL，关联 nodes 和 node_users 表
+    SET @query_sql = CONCAT(
+        'SELECT ',
+        '  n.id AS node_id, ',
+        '  n.name AS node_name, ',
+        '  n.owner_id, ',
+        '  n.created_at AS node_created_at, ',
+        '  n.lastupdate_at AS node_lastupdate_at, ',
+        '  n.domain, ',
+        '  n.access_key, ',
+        '  n.security_key, ',
+        '  n.company_id AS node_company_id, ',
+        '  nu.id AS user_id, ',
+        '  nu.email, ',
+        '  nu.created_at AS user_created_at, ',
+        '  nu.deleted, ',
+        '  nu.last_update AS user_last_update, ',
+        '  nu.is_active, ',
+        '  nu.company_id AS user_company_id ',
+        'FROM nodes n ',
+        'LEFT JOIN node_users nu ON n.owner_id = nu.id ',
+        'WHERE 1=1 ',
+        IF(p_node_user_id IS NOT NULL AND p_node_user_id > 0,
+           CONCAT('AND n.owner_id = ', p_node_user_id, ' '),
+           ''),
+        @order_clause,
+        ' LIMIT ', p_limit,
+        ' OFFSET ', p_offset
     );
-    TRUNCATE TABLE tmp_user_models;
 
-    OPEN cur;
-    read_loop: LOOP
-            FETCH cur INTO v_model_ids;
-            IF done THEN
-                LEAVE read_loop;
-    END IF;
-
-            -- 动态拼接 SQL，只根据 model_ids 查 models_info
-            SET @sql = CONCAT(
-                'INSERT INTO tmp_user_models ',
-                'SELECT * FROM models_info ',
-                'WHERE FIND_IN_SET(model_id, ''', v_model_ids, ''') > 0'
-            );
-
-    PREPARE stmt FROM @sql;
-    EXECUTE stmt;
-    DEALLOCATE PREPARE stmt;
-    END LOOP;
-
-    CLOSE cur;
-
-    -- 拼接 ORDER BY / LIMIT / OFFSET
-    SET @final_sql = CONCAT(
-            'SELECT * FROM tmp_user_models ',
-            IF(p_order_by IS NOT NULL AND p_order_by <> '', CONCAT(' ORDER BY ', p_order_by), ''),
-            ' LIMIT ', p_limit,
-            ' OFFSET ', p_offset
-        );
-
-    PREPARE stmt FROM @final_sql;
+    -- 执行主查询
+    PREPARE stmt FROM @query_sql;
     EXECUTE stmt;
     DEALLOCATE PREPARE stmt;
 
-    -- 总数
-    SET @count_query = 'SELECT COUNT(*) AS total_count FROM tmp_user_models';
-    PREPARE stmt FROM @count_query;
+    -- 查询总数
+    SET @count_sql = CONCAT(
+        'SELECT COUNT(*) AS total_count ',
+        'FROM nodes n ',
+        'LEFT JOIN node_users nu ON n.owner_id = nu.id ',
+        'WHERE 1=1 ',
+        IF(p_node_user_id IS NOT NULL AND p_node_user_id > 0,
+           CONCAT('AND n.owner_id = ', p_node_user_id),
+           '')
+    );
+
+    PREPARE stmt FROM @count_sql;
     EXECUTE stmt;
     DEALLOCATE PREPARE stmt;
-
-    DROP TEMPORARY TABLE IF EXISTS tmp_user_models;
 END //
 
 DELIMITER ;
