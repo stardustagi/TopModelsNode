@@ -127,8 +127,10 @@ func NodeUserAccess() echo.MiddlewareFunc {
 						"errmsg":  "用户信息获取失败",
 					})
 				}
-				tokenKey := fmt.Sprintf("%s:%s:user:%s", constants.AppName, constants.AppVersion, constants.NodeUserTokenKey(intId))
-				jwtKey := fmt.Sprintf("%s:%s", constants.ModelsKeyPrefix, constants.NodeUserJwtKey(intId))
+				//tokenKey := fmt.Sprintf("%s:%s:user:%s", constants.AppName, constants.AppVersion, constants.NodeUserTokenKey(intId))
+
+				tokenKey := fmt.Sprintf("%s:%s", constants.NodeUserKeyPrefix, constants.NodeUserTokenKey(intId))
+				jwtKey := fmt.Sprintf("%s:%s", constants.NodeUserKeyPrefix, constants.NodeUserJwtKey(intId))
 				logs.Info("redis key is:", zap.String("tokenKey", tokenKey), zap.String("jwtKey", jwtKey))
 				redisCmd := redis.GetRedisDb()
 				oldToken, err1 := redisCmd.Get(context.Background(), tokenKey).Result()
