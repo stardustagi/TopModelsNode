@@ -679,6 +679,41 @@ func (nus *NodeUsersHttpService) MapModelsProviderInfoToNode(ctx echo.Context,
 	return protocol.Response(ctx, nil, fmt.Sprintf("update success %d", count))
 }
 
+// ListNodeModelsProviderInfos 获取节点模型供应商信息
+// godoc
+// @Summary 获取节点模型供应商信息
+// @Description 获取节点模型供应商信息
+// @Tags node/llm
+// @Accept json
+// @Produce json
+// @Param request body requests.PageReq true "请求参数"
+// @Success 200 {object} responses.DefaultResponse
+// @Router /node/llm/listNodeModelsProviderInfos [post]
+func (nus *NodeUsersHttpService) ListNodeModelsProviderInfos(ctx echo.Context,
+	req requests.PageReq,
+	resp responses.DefaultResponse) error {
+	nus.logger.Info("ListNodeModelsProviderInfos called", zap.Any("req", req))
+	session := nus.dao.NewSession()
+	defer session.Close()
+	// 默认排序
+	if req.Sort == "" {
+		req.Sort = "id asc"
+	}
+	nodeUserId, err := nus.getUserIdFromContext(ctx)
+	if err != nil {
+		nus.logger.Error("invalid user id", zap.Int64("nodeUserId", nodeUserId), zap.Error(err))
+		return protocol.Response(ctx, constants.ErrInvalidParams, nil)
+	}
+	result, err := session.CallProcedure("ListNodeModelsProviderInfos",
+		nodeUserId, req.Limit, req.Skip, req.Sort)
+	if err != nil {
+		nus.logger.Error("ListNodeModelsProviderInfos error:", zap.Error(err))
+		return protocol.Response(ctx, constants.ErrInternalServer.AppendErrors(err), nil)
+	}
+
+	return protocol.Response(ctx, nil, result)
+}
+
 // UpsetNodeInfos 添加/更新节点信息
 // godoc
 // @Summary 添加/更新节点信息
