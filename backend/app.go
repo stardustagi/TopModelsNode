@@ -6,9 +6,11 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
+	"github.com/stardustagi/TopLib/libs/databases"
 	"github.com/stardustagi/TopLib/libs/logs"
 	"github.com/stardustagi/TopLib/libs/server"
 	"github.com/stardustagi/TopLib/utils"
+	"github.com/stardustagi/TopModelsNode/models"
 	"go.uber.org/zap"
 )
 
@@ -51,6 +53,8 @@ func NewApplication(configBytes, wsConfigBytes []byte) *Application {
 
 func (h *Application) Start() {
 	h.logger.Info("Starting HttpBackend")
+	// 同步数据库
+	h.syncDatabaseSchema()
 	go h.manager.Start()
 	go func() {
 		if err := h.backend.Start(); err != nil {
@@ -114,4 +118,33 @@ func (h *Application) HandleWebSocket() {
 	//)
 	//h.backend.AddHandler("GET", "/ws", ws)
 	//h.logger.Info("WebSocket handler registered")
+}
+
+func (h *Application) syncDatabaseSchema() {
+	h.logger.Info("Syncing database schema...")
+	modelList := []interface{}{
+		&models.Company{},
+		&models.InvitationCode{},
+		&models.LlmUsageReport{},
+		&models.ModelsInfo{},
+		&models.ModelsProvider{},
+		&models.NodeModelsInfoMaps{},
+		&models.NodeUsers{},
+		&models.Nodes{},
+		&models.SystemConfig{},
+		&models.UserAgentTokens{},
+		&models.UserApiKeys{},
+		&models.UserConsumeRecord{},
+		&models.UserModelsInfos{},
+		&models.UserPayLog{},
+		&models.UserWallet{},
+		&models.Users{},
+		&models.UsersKey{},
+	}
+	dbDao := databases.GetDao()
+	if err := dbDao.Native().Sync2(modelList...); err != nil {
+		h.logger.Error("Database schema sync failed", zap.Error(err))
+		panic("Database schema sync failed: " + err.Error())
+	}
+	h.logger.Info("Database schema synced successfully")
 }
