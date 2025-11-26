@@ -129,16 +129,28 @@ func (nus *NodeUsersHttpService) initialization() {
 	))
 	nus.app.AddPostHandler("users", server.NewHandler(
 		"upsetModelsInfos",
-		[]string{"node", "llm", "addModelsInfos"},
+		[]string{"node", "llm", "upsetModelsInfos"},
 		nus.UpsetModelsInfos))
 	nus.app.AddPostHandler("users", server.NewHandler(
+		"listModelsInfos",
+		[]string{"node", "llm", "upsetModelsInfos"},
+		nus.ListModelsInfos))
+	nus.app.AddPostHandler("users", server.NewHandler(
 		"upsetModelsProvider",
-		[]string{"node", "llm", "addModelsProvider"},
+		[]string{"node", "llm", "upsetModelsProvider"},
 		nus.UpsetModelsProvider))
+	nus.app.AddPostHandler("users", server.NewHandler(
+		"listModelsProviderInfos",
+		[]string{"node", "llm", "listModelsProviderInfos"},
+		nus.ListModelsProviderInfos))
 	nus.app.AddPostHandler("users", server.NewHandler(
 		"upsetNodeInfos",
 		[]string{"node", "llm", "upsetNodeInfos"},
 		nus.UpsetNodeInfos))
+	nus.app.AddPostHandler("users", server.NewHandler(
+		"listNodeInfos",
+		[]string{"node", "llm", "upsetNodeInfos"},
+		nus.ListNodeInfos))
 	nus.app.AddPostHandler("users", server.NewHandler(
 		"MapModelsProviderInfoToNode",
 		[]string{"node", "llm", "MapModelsProviderInfoToNode"},
@@ -599,10 +611,10 @@ func (nus *NodeUsersHttpService) UpsetModelsInfos(ctx echo.Context,
 	return protocol.Response(ctx, nil, modelsInfos)
 }
 
-func (nus *NodeUsersHttpService) ListModelsInfo(ctx echo.Context,
+func (nus *NodeUsersHttpService) ListModelsInfos(ctx echo.Context,
 	req requests.PageReq,
 	resp responses.DefaultResponse) error {
-	nus.logger.Info("ListModelsInfo called")
+	nus.logger.Info("ListModelsInfos called")
 
 	// 从 header 中获取用户 ID
 	_id, err := nus.getUserIdFromContext(ctx)
@@ -670,10 +682,10 @@ func (nus *NodeUsersHttpService) UpsetModelsProvider(ctx echo.Context,
 	return protocol.Response(ctx, nil, modelsProviders)
 }
 
-func (nus *NodeUsersHttpService) ListModelsProviderInfo(ctx echo.Context,
+func (nus *NodeUsersHttpService) ListModelsProviderInfos(ctx echo.Context,
 	req requests.PageReq,
 	resp responses.DefaultResponse) error {
-	nus.logger.Info("ListModelsProviderInfo called")
+	nus.logger.Info("ListModelsProviderInfos called")
 
 	// 从 header 中获取用户 ID
 
