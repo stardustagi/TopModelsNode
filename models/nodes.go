@@ -9,7 +9,7 @@ import (
 type Nodes struct {
 	Id           int64  `json:"id" xorm:"'id' pk autoincr BIGINT(12)"`
 	Name         string `json:"name" xorm:"'name' VARCHAR(24)"`
-	NodeUserId   int64  `json:"node_user_id" xorm:"'node_user_id' BIGINT(12)"`
+	OwnerId      int64  `json:"owner_id" xorm:"'owner_id' comment('节点所有者ID对应nodeUserID') BIGINT(12)"`
 	CreatedAt    int64  `json:"created_at" xorm:"'created_at' BIGINT(12)"`
 	LastupdateAt int64  `json:"lastupdate_at" xorm:"'lastupdate_at' BIGINT(12)"`
 	Domain       string `json:"domain" xorm:"'domain' VARCHAR(128)"`

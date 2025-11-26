@@ -3,8 +3,8 @@ package node_llm
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
-	"time"
 
 	"github.com/stardustagi/TopLib/libs/jwt"
 	"github.com/stardustagi/TopLib/libs/redis"
@@ -32,7 +32,7 @@ func (n *NodeHttpService) updateNodeUser(nodeUser *models.NodeUsers) error {
 }
 
 // generateNodeLoginToken 生成用户Token
-func (n *NodeHttpService) generateNodeLoginToken(ak, once string, nodeUserId int64) (string, string, error) {
+func (n *NodeHttpService) generateNodeLoginToken(ak, once string, nodeUserId int64) (int64, string, string, error) {
 	// 生成Token
 	n.logger.Info("生成节点用户Token", zap.Int64("nodeUserId", nodeUserId), zap.String("accessKey", ak), zap.String("once", once))
 
@@ -40,69 +40,69 @@ func (n *NodeHttpService) generateNodeLoginToken(ak, once string, nodeUserId int
 	ok, err := n.rds.Exists(n.ctx, nodeUserKey)
 	if err != nil && !errors.Is(err, redis.Nil) {
 		n.logger.Error("检查Redis节点用户Token失败", zap.Error(err), zap.String("nodeUserKey", nodeUserKey))
-		return "", "", err
+		return 0, "", "", err
 	}
 
 	// 生成token
 	token := uuid.GenBytes(32)
 	err = n.rds.Set(n.ctx, nodeUserKey, token, constants.NodeUserTokenExpireTimeString)
 	// 查找Ak对应的Sk
-	keyModel := &models.Nodes{
-		AccessKey:  ak,
-		NodeUserId: nodeUserId,
+	nodeInfo := &models.Nodes{
+		AccessKey: ak,
+		OwnerId:   nodeUserId,
 	}
 
-	ok, err = n.dao.FindOne(keyModel)
+	ok, err = n.dao.FindOne(nodeInfo)
 	if err != nil || !ok {
 		n.logger.Error("查找节点用户密钥失败", zap.Error(err), zap.String("accessKey", ak))
-		return "", "", fmt.Errorf("节点用户密钥不存在，请联系管理员")
+		return 0, "", "", fmt.Errorf("节点用户密钥不存在，请联系管理员")
 	}
-	if keyModel.Name == "" {
+	if nodeInfo.Name == "" {
 		n.logger.Debug("新节点，需要生成节点ID", zap.String("accessKey", ak))
-		keyModel.Name = uuid.GetUuidString()
+		nodeInfo.Name = uuid.GetUuidString()
 	}
 	// 设置节点用户密钥到Redis
-	nodeAccessKey := constants.NodeAccessModelsKey(keyModel.Name)
+	nodeAccessKey := constants.NodeAccessModelsKey(nodeInfo.Id)
 	if err = n.rds.HSet(n.ctx, nodeAccessKey, "token", []byte(token)); err != nil {
 		n.logger.Error("保存节点用户Token到Redis失败", zap.Error(err), zap.String("nodeAccessKey", nodeAccessKey))
-		return "", "", err
+		return 0, "", "", err
 	}
 	err = n.rds.HSet(n.ctx, nodeAccessKey, "accessKey", []byte(ak))
 	if err != nil {
 		n.logger.Error("保存节点用户AccessKey到Redis失败", zap.Error(err), zap.String("nodeAccessKey", nodeAccessKey))
-		return "", "", err
+		return 0, "", "", err
 	}
-	err = n.rds.HSet(n.ctx, nodeAccessKey, "securityKey", []byte(keyModel.SecurityKey))
+	err = n.rds.HSet(n.ctx, nodeAccessKey, "securityKey", []byte(nodeInfo.SecurityKey))
 	if err != nil {
 		n.logger.Error("保存节点用户SecurityKey到Redis失败", zap.Error(err), zap.String("nodeAccessKey", nodeAccessKey))
-		return "", "", err
+		return 0, "", "", err
 	}
 	err = n.rds.HSet(n.ctx, nodeAccessKey, "once", []byte(once))
 	if err != nil {
 		n.logger.Error("保存节点用户OnceToken到Redis失败", zap.Error(err), zap.String("nodeAccessKey", nodeAccessKey))
-		return "", "", err
+		return 0, "", "", err
 	}
 	// 设置redis过期时间
 	err = n.rds.Expire(n.ctx, nodeAccessKey, constants.NodeUserTokenExpireTimeString)
 	if err != nil {
 		n.logger.Error("设置过期失败", zap.Error(err), zap.String("nodeAccessKey", nodeAccessKey))
-		return "", "", err
+		return 0, "", "", err
 	}
 	// 组装密钥
-	jwtKey := fmt.Sprintf("%s-%s-%s-%s", ak, keyModel.SecurityKey, once, keyModel.Name)
+	jwtKey := fmt.Sprintf("%s-%s-%s-%s", ak, nodeInfo.SecurityKey, once, nodeInfo.Name)
 	jwtString := jwt.JWTEncrypt(fmt.Sprintf("%d", nodeUserId), string(token), jwtKey)
 
 	// 更新数据库
 	session := n.dao.NewSession()
-	_, err = session.UpdateById(keyModel.Id, keyModel)
+	_, err = session.UpdateById(nodeInfo.Id, nodeInfo)
 	if err != nil {
 		n.logger.Error("更新节点用户密钥失败", zap.Error(err), zap.String("accessKey", ak))
 		// 清理redis
 		_, err = n.rds.Del(n.ctx, nodeUserKey)
 		_, err = n.rds.Del(n.ctx, nodeAccessKey)
-		return "", "", err
+		return 0, "", "", err
 	}
-	return keyModel.Name, jwtString, nil
+	return nodeInfo.Id, nodeInfo.Name, jwtString, nil
 }
 
 func (n *NodeHttpService) generateNodeUserJwt(nodeUserId int64) (string, string, error) {
@@ -215,33 +215,33 @@ func (n *NodeHttpService) handleModelKeyExpiration(expiredKey string) error {
 	n.logger.Info("处理模型键过期事件", zap.String("key", expiredKey))
 
 	// 从键中提取NodeId
-	nodeId := n.extractNodeIdFromKey(expiredKey)
-	if nodeId == "" {
+	stringNodeId := n.extractNodeIdFromKey(expiredKey)
+	if stringNodeId == "" {
 		n.logger.Warn("无法从键中提取NodeId", zap.String("key", expiredKey))
 		return fmt.Errorf("无法从键中提取NodeId: %s", expiredKey)
 	}
-
+	nodeId, err := strconv.ParseInt(stringNodeId, 10, 64)
 	n.logger.Info("提取到NodeId",
 		zap.String("key", expiredKey),
-		zap.String("nodeId", nodeId))
+		zap.Int64("nodeId", nodeId))
 
 	// 从数据库查找对应的模型信息
 	modelInfos, err := n.readModelInfo2DB(nodeId)
 	if err != nil {
 		n.logger.Error("从数据库读取模型信息失败",
 			zap.Error(err),
-			zap.String("nodeId", nodeId))
+			zap.Int64("nodeId", nodeId))
 		return err
 	}
 
 	if len(modelInfos) == 0 {
 		n.logger.Info("数据库中未找到对应的模型信息",
-			zap.String("nodeId", nodeId))
+			zap.Int64("nodeId", nodeId))
 		return nil
 	}
 
 	n.logger.Info("从数据库找到模型信息，准备更新状态为offline",
-		zap.String("nodeId", nodeId),
+		zap.Int64("nodeId", nodeId),
 		zap.Int("modelCount", len(modelInfos)))
 
 	// 更新模型状态为offline
@@ -249,68 +249,28 @@ func (n *NodeHttpService) handleModelKeyExpiration(expiredKey string) error {
 	if err != nil {
 		n.logger.Error("更新模型状态为offline失败",
 			zap.Error(err),
-			zap.String("nodeId", nodeId))
+			zap.Int64("nodeId", nodeId))
 		return err
 	}
 
 	n.logger.Info("成功处理模型键过期事件",
 		zap.String("key", expiredKey),
-		zap.String("nodeId", nodeId))
+		zap.Int64("nodeId", nodeId))
 
 	// 注销nodeId对应的节点
 	if ok, err := n.unRegisterNodes(nodeId); err != nil || !ok {
 		n.logger.Error("注销节点失败",
 			zap.Error(err),
-			zap.String("nodeId", nodeId))
+			zap.Int64("nodeId", nodeId))
 		return err
 	}
 	return nil
 }
 
 // updateModelStatusToOffline 将指定nodeId的所有模型状态更新为offline
-func (n *NodeHttpService) updateModelStatusToOffline(nodeId string) error {
-	n.logger.Info("更新模型状态为offline", zap.String("nodeId", nodeId))
-
-	// 先查询需要更新的模型信息
-	var modelsInfoList []*models.ModelsInfo
-	err := n.dao.FindMany(&modelsInfoList, "id ASC", &models.ModelsInfo{NodeId: nodeId})
-	if err != nil {
-		n.logger.Error("查询模型信息失败", zap.Error(err), zap.String("nodeId", nodeId))
-		return err
-	}
-
-	if len(modelsInfoList) == 0 {
-		n.logger.Info("未找到需要更新的模型信息", zap.String("nodeId", nodeId))
-		return nil
-	}
-
-	// 使用数据库会话逐个更新模型状态
-	session := n.dao.NewSession()
-	defer session.Close()
-
-	updatedCount := 0
-	for _, modelInfo := range modelsInfoList {
-		// 更新模型状态为offline
-		modelInfo.Status = "0"
-		modelInfo.LastUpdate = time.Now().Unix()
-
-		// 使用UpdateById更新单个记录
-		_, err := session.UpdateById(modelInfo.Id, modelInfo)
-		if err != nil {
-			n.logger.Error("更新模型状态失败",
-				zap.Error(err),
-				zap.String("nodeId", nodeId),
-				zap.String("modelId", modelInfo.ModelId),
-				zap.Int64("id", modelInfo.Id))
-			continue
-		}
-		updatedCount++
-	}
-
-	n.logger.Info("成功更新模型状态为offline",
-		zap.String("nodeId", nodeId),
-		zap.Int("totalModels", len(modelsInfoList)),
-		zap.Int("updatedCount", updatedCount))
+func (n *NodeHttpService) updateModelStatusToOffline(nodeId int64) error {
+	// todo : 修改模型状态为离线
+	n.logger.Info("更新模型状态为offline", zap.Int64("modeId", nodeId))
 
 	return nil
 }
@@ -352,15 +312,16 @@ func (n *NodeHttpService) CheckNodeIdExists(nodeId int64) bool {
 	return true
 }
 
-func (n *NodeHttpService) ownerNodeCheck(nodeUserId int64, name string) (bool, error) {
+func (n *NodeHttpService) ownerNodeCheck(nodeUserId int64, name string) (bool, int64, error) {
 	n.logger.Info("LLMUserOwnerNodeCheck called",
 		zap.Int64("nodeUserId", nodeUserId),
 		zap.String("nodeId", name))
-	nodeKeysModel := &models.Nodes{
-		NodeUserId: nodeUserId,
-		Name:       name,
+	nodeInfo := &models.Nodes{
+		OwnerId: nodeUserId,
+		Name:    name,
 	}
 	session := n.dao.NewSession()
 	defer session.Close()
-	return session.FindOne(nodeKeysModel)
+	ok, err := session.FindOne(nodeInfo)
+	return ok, nodeInfo.Id, err
 }

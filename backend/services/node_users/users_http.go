@@ -343,7 +343,7 @@ func (nus *NodeUsersHttpService) LoginFromByEmail(c echo.Context, req requests.L
 // @Failure 500 {object} responses.DefaultResponse
 // @Router /node/user/logout [post]
 func (nus *NodeUsersHttpService) LogoutUser(c echo.Context, req requests.LogoutUserRequest, resp responses.LogoutUserResponse) error {
-	nus.logger.Info("LogoutUser called", zap.Int64("userId", req.UserID))
+	nus.logger.Info("LogoutUser called", zap.Int64("userIdg", req.UserID))
 
 	// 清除Redis中的Token缓存
 	if err := nus.clearUserCache(req.UserID); err != nil {
@@ -533,26 +533,28 @@ func (nus *NodeUsersHttpService) ListUsers(c echo.Context, req requests.ListUser
 // @Failure 400 {object} responses.DefaultResponse
 // @Failure 500 {object} responses.DefaultResponse
 // @Router /node/user/checkUserBalance [post]
-func (nus *NodeUsersHttpService) NodeCheckUserBalanceHandler(c echo.Context, req requests.UserBalanceReq, resp responses.UserBalanceResp) error {
-	nodeId := c.Request().Header.Get("nodeId")
-	if nodeId == "" {
-		return protocol.Response(c, constants.ErrInvalidParams, "")
+func (nus *NodeUsersHttpService) NodeCheckUserBalanceHandler(ctx echo.Context, req requests.UserBalanceReq, resp responses.UserBalanceResp) error {
+	nus.logger.Info("NodeCheckUserBalanceHandler called", zap.Int64("userId", req.UserID), zap.String("walletType", req.WalletType))
+	nodeId, err := nus.getUserIdFromContext(ctx)
+	if err != nil {
+		nus.logger.Error("invalid user id", zap.Int64("id", nodeId), zap.Error(err))
+		return protocol.Response(ctx, constants.ErrInvalidParams, nil)
 	}
 
 	llmSrv := node_llm.GetNodeHttpServiceInstance()
 	// 检查节点是否在线
 	ok, err := llmSrv.NodeCheckin(nodeId)
 	if err != nil || !ok {
-		return protocol.Response(c, constants.ErrNodeNotRegister.AppendErrors(err), "")
+		return protocol.Response(ctx, constants.ErrNodeNotRegister.AppendErrors(err), "")
 	}
 	wallet, err := nus.getUserWalletBalance(req.UserID, req.WalletType)
 	if err != nil {
-		return protocol.Response(c, constants.ErrGetUserBalance.AppendErrors(err), "")
+		return protocol.Response(ctx, constants.ErrGetUserBalance.AppendErrors(err), "")
 	}
 	resp.Balance = wallet.Balance
 	resp.WalletType = req.WalletType
 	resp.WalletAddress = wallet.WalletAddress
-	return protocol.Response(c, nil, resp)
+	return protocol.Response(ctx, nil, resp)
 }
 
 // UpsetModelsInfos @Tags node/llm
@@ -594,6 +596,30 @@ func (nus *NodeUsersHttpService) UpsetModelsInfos(ctx echo.Context,
 		}
 		modelsInfos = append(modelsInfos, bean)
 	}
+	return protocol.Response(ctx, nil, modelsInfos)
+}
+
+func (nus *NodeUsersHttpService) ListModelsInfo(ctx echo.Context,
+	req requests.PageReq,
+	resp responses.DefaultResponse) error {
+	nus.logger.Info("ListModelsInfo called")
+
+	// 从 header 中获取用户 ID
+	_id, err := nus.getUserIdFromContext(ctx)
+	if err != nil {
+		nus.logger.Error("invalid user id", zap.Int64("_id", _id), zap.Error(err))
+		return protocol.Response(ctx, constants.ErrInvalidParams, nil)
+	}
+	session := nus.dao.NewSession()
+	defer session.Close()
+
+	var modelsInfos []models.ModelsInfo
+	// 尝试查询所有模型信息
+	if err = session.Native().OrderBy(req.Sort).Limit(req.Limit, req.Skip).Find(&modelsInfos); err != nil {
+		nus.logger.Error("query models info failed", zap.Error(err))
+		return protocol.Response(ctx, constants.ErrInternalServer.AppendErrors(err), nil)
+	}
+
 	return protocol.Response(ctx, nil, modelsInfos)
 }
 
@@ -641,6 +667,36 @@ func (nus *NodeUsersHttpService) UpsetModelsProvider(ctx echo.Context,
 		}
 		modelsProviders = append(modelsProviders, modelsProvider)
 	}
+	return protocol.Response(ctx, nil, modelsProviders)
+}
+
+func (nus *NodeUsersHttpService) ListModelsProviderInfo(ctx echo.Context,
+	req requests.PageReq,
+	resp responses.DefaultResponse) error {
+	nus.logger.Info("ListModelsProviderInfo called")
+
+	// 从 header 中获取用户 ID
+
+	// 转换用户 ID 为整数
+	userId, err := nus.getUserIdFromContext(ctx)
+	if err != nil {
+		nus.logger.Error("invalid user id", zap.Int64("userId", userId), zap.Error(err))
+		return protocol.Response(ctx, constants.ErrInvalidParams, nil)
+	}
+
+	session := nus.dao.NewSession()
+	defer session.Close()
+
+	// 查询属于该用户的模型供应商信息
+	var modelsProviders []models.ModelsProvider
+	condiBean := &models.ModelsProvider{
+		OwnerId: userId,
+	}
+	if err := session.Native().OrderBy(req.Sort).Limit(req.Limit, req.Skip).Find(&modelsProviders, condiBean); err != nil {
+		nus.logger.Error("query models provider info failed", zap.Error(err))
+		return protocol.Response(ctx, constants.ErrInternalServer.AppendErrors(err), nil)
+	}
+
 	return protocol.Response(ctx, nil, modelsProviders)
 }
 
@@ -709,12 +765,12 @@ func (nus *NodeUsersHttpService) UpsetNodeInfos(ctx echo.Context,
 		req.Name = uuid.GenString(12)
 	}
 	where := &models.Nodes{
-		Name:       req.Name,
-		NodeUserId: req.NodeUserId,
+		Name:    req.Name,
+		OwnerId: req.NodeUserId,
 	}
 	bean := &models.Nodes{
 		Name:         req.Name,
-		NodeUserId:   req.NodeUserId,
+		OwnerId:      req.NodeUserId,
 		AccessKey:    req.AccessKey,
 		SecurityKey:  req.SecretKey,
 		LastupdateAt: time.Now().Unix(),

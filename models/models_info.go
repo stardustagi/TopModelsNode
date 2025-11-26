@@ -9,7 +9,6 @@ import (
 type ModelsInfo struct {
 	Id          int64  `json:"id" xorm:"'id' pk autoincr BIGINT(20)"`
 	ModelId     string `json:"model_id" xorm:"'model_id' not null comment('模型ID') VARCHAR(128)"`
-	NodeId      string `json:"node_id" xorm:"'node_id' comment('node编号') VARCHAR(64)"`
 	Name        string `json:"name" xorm:"'name' comment('模型名') VARCHAR(128)"`
 	ApiVersion  string `json:"api_version" xorm:"'api_version' VARCHAR(24)"`
 	DeployName  string `json:"deploy_name" xorm:"'deploy_name' VARCHAR(128)"`
@@ -19,7 +18,7 @@ type ModelsInfo struct {
 	Status      string `json:"status" xorm:"'status' comment('模型状态') VARCHAR(12)"`
 	LastUpdate  int64  `json:"last_update" xorm:"'last_update' comment('最后更新时间') BIGINT(20)"`
 	IsPrivate   int    `json:"is_private" xorm:"'is_private' comment('是否私有化') TINYINT(1)"`
-	OwnerId     int64  `json:"owner_id" xorm:"'owner_id' comment('用户ID') BIGINT(12)"`
+	OwnerId     int64  `json:"owner_id" xorm:"'owner_id' comment('为0则为平台模型') BIGINT(12)"`
 	Address     string `json:"address" xorm:"'address' comment('模型地址') VARCHAR(255)"`
 	ApiStyles   string `json:"api_styles" xorm:"'api_styles' comment('Api风格') VARCHAR(255)"`
 }

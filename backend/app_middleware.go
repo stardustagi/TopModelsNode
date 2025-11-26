@@ -22,11 +22,18 @@ func NodeAccess() echo.MiddlewareFunc {
 			//在这里处理拦截请求的逻辑
 
 			redisCmd := redis.GetRedisDb()
-			nodeId := c.Request().Header.Get("nodeId")
+			nodeIdString := c.Request().Header.Get("nodeId")
 			jwtStr := c.Request().Header.Get("jwt")
 			accessKey := c.Request().Header.Get("accessKey")
 			once := c.Request().Header.Get("once")
 			// 取nodeKey
+			nodeId, err := strconv.ParseInt(nodeIdString, 10, 64)
+			if err != nil {
+				return c.JSON(401, map[string]any{
+					"errcode": 2,
+					"errmsg":  "Node ID格式错误",
+				})
+			}
 			nodeAccessKey := fmt.Sprintf("%s:%s", constants.ApplicationPrefix, constants.NodeAccessModelsKey(nodeId))
 			secretKey, err := redisCmd.HGet(context.Background(), nodeAccessKey, "securityKey").Result()
 			if err != nil && errors.Is(err, redis.Nil) {
@@ -41,7 +48,7 @@ func NodeAccess() echo.MiddlewareFunc {
 					"errmsg":  "Node 信息错误，请联系管理员",
 				})
 			}
-			secret := fmt.Sprintf("%s-%s-%s-%s", accessKey, secretKey, once, nodeId)
+			secret := fmt.Sprintf("%s-%s-%s-%s", accessKey, secretKey, once, nodeIdString)
 			if jwtStr != "" {
 				jwtObj, ok := jwt.JWTDecrypt(jwtStr, secret)
 				if !ok || jwtObj == nil || jwtObj["token"] == nil || jwtObj["id"] == nil {

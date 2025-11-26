@@ -8,8 +8,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"time"
 
+	"github.com/labstack/echo/v4"
 	"github.com/stardustagi/TopLib/libs/jwt"
 	"github.com/stardustagi/TopLib/libs/redis"
 	"github.com/stardustagi/TopLib/libs/uuid"
@@ -210,4 +212,12 @@ func (nus *NodeUsersHttpService) nodeUserActive(nodeUserId int64, activeCode str
 	}
 	nus.logger.Info("节点用户激活成功", zap.Int64("nodeUserId", nodeUserId))
 	return true, nil
+}
+
+func (nus *NodeUsersHttpService) getUserIdFromContext(ctx echo.Context) (int64, error) {
+	_id := ctx.Request().Header.Get("Id")
+	if _id == "" {
+		return 0, fmt.Errorf("用户ID不能为空")
+	}
+	return strconv.ParseInt(_id, 10, 64)
 }

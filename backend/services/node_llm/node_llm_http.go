@@ -214,7 +214,7 @@ func (n *NodeHttpService) NodeLogin(ctx echo.Context, req requests.NodeLoginReq,
 	n.logger.Info("节点用户登录成功", zap.String("email", nodeUser.Email))
 
 	// 生成Token
-	name, jwtToken, err := n.generateNodeLoginToken(req.AccessToken, req.Once, nodeUser.Id)
+	nodeId, name, jwtToken, err := n.generateNodeLoginToken(req.AccessToken, req.Once, nodeUser.Id)
 	if err != nil {
 		n.logger.Error("节点用户Token生成失败", zap.String("email", nodeUser.Email), zap.Error(err))
 		return protocol.Response(ctx, constants.ErrAuthFailed.AppendErrors(err), nil)
@@ -224,7 +224,7 @@ func (n *NodeHttpService) NodeLogin(ctx echo.Context, req requests.NodeLoginReq,
 	resp.Jwt = jwtToken
 	resp.Once = req.Once
 	resp.AccessKey = req.AccessToken
-	modelsConfigs, err := n.getNodeIdModelsInfo(name)
+	modelsConfigs, err := n.getNodeIdModelsInfo(nodeId)
 	if err != nil {
 		n.logger.Error("获取节点模型配置失败", zap.String("nodeName", name), zap.Error(err))
 		return protocol.Response(ctx, constants.ErrInternalServer.AppendErrors(err), nil)
@@ -244,15 +244,15 @@ func (n *NodeHttpService) NodeLogin(ctx echo.Context, req requests.NodeLoginReq,
 // @Router /node/llm/billingUsage [post]
 func (n *NodeHttpService) NodeBillingUsage(ctx echo.Context, req requests.NodeReportUsageReq, resp responses.DefaultResponse) error {
 	n.logger.Info("LLMNodeBillingUsage called",
-		zap.String("nodeId", req.NodeId),
+		zap.Int64("nodeId", req.NodeId),
 		zap.Int("usageCount", len(req.Report)))
 	if len(req.Report) == 0 {
-		n.logger.Warn("节点计费上报调用时，使用量列表为空", zap.String("nodeId", req.NodeId))
+		n.logger.Warn("节点计费上报调用时，使用量列表为空", zap.Int64("nodeId", req.NodeId))
 		return protocol.Response(ctx,
 			constants.ErrInternalServer.AppendErrors(fmt.Errorf("使用量列表不能为空")),
 			nil)
 	}
-	if req.NodeId == "" {
+	if req.NodeId <= 0 {
 		n.logger.Warn("节点计费上报调用时，节点ID为空")
 		return protocol.Response(ctx,
 			constants.ErrInternalServer.AppendErrors(fmt.Errorf("节点ID不能为空")),
@@ -261,7 +261,7 @@ func (n *NodeHttpService) NodeBillingUsage(ctx echo.Context, req requests.NodeRe
 	// 检查nodeId是否注册过
 	key := constants.NodeAccessModelsKey(req.NodeId)
 	if ok, err := n.rds.Exists(n.ctx, key); (err != nil && !errors.Is(err, redis.Nil)) || !ok {
-		n.logger.Error("节点未注册", zap.Error(err), zap.String("nodeId", req.NodeId))
+		n.logger.Error("节点未注册", zap.Error(err), zap.Int64("nodeId", req.NodeId))
 		return protocol.Response(ctx,
 			constants.ErrInternalServer.AppendErrors(fmt.Errorf("节点未注册")),
 			nil)
@@ -271,8 +271,8 @@ func (n *NodeHttpService) NodeBillingUsage(ctx echo.Context, req requests.NodeRe
 	defer session.Close()
 	for _, u := range req.Report {
 		// 无效模型和私有模型不记录
-		if u.ModelID == "" || u.IsPrivate == 1 {
-			n.logger.Warn("使用量报告中包含无效条目，跳过", zap.String("nodeId", req.NodeId), zap.Any("usage", u))
+		if u.ModelID <= 0 || u.IsPrivate == 1 {
+			n.logger.Warn("使用量报告中包含无效条目，跳过", zap.Int64("nodeId", req.NodeId), zap.Any("usage", u))
 			continue
 		}
 		stream := 0
@@ -323,14 +323,14 @@ func (n *NodeHttpService) NodeBillingUsage(ctx echo.Context, req requests.NodeRe
 	// 发布到nats
 	byteString, err := json.Marshal(req.Report)
 	if err != nil {
-		n.logger.Error("使用量报告序列化失败", zap.Error(err), zap.String("nodeId", req.NodeId))
+		n.logger.Error("使用量报告序列化失败", zap.Error(err), zap.Int64("nodeId", req.NodeId))
 		return protocol.Response(ctx,
 			constants.ErrInternalServer.AppendErrors(err),
 			nil)
 	}
 	msgSrv := message.GetNatsQueueInstance()
 	if ok := msgSrv.PublisherStreamAsync("billing.nodeUsage", byteString); !ok {
-		n.logger.Error("使用量报告发布到NATS失败", zap.String("nodeId", req.NodeId))
+		n.logger.Error("使用量报告发布到NATS失败", zap.Int64("nodeId", req.NodeId))
 		return protocol.Response(ctx,
 			constants.ErrInternalServer.AppendErrors(fmt.Errorf("使用量报告发布失败")),
 			nil)
@@ -361,7 +361,7 @@ func (n *NodeHttpService) NodeUnregister(c echo.Context, req requests.NodeUnRegi
 	}
 	logger.Info("LLM node user unregister requested", zap.Any("request", req))
 
-	ok, err := n.ownerNodeCheck(nodeUserId, req.Name)
+	ok, nodeId, err := n.ownerNodeCheck(nodeUserId, req.Name)
 	if err != nil {
 		logger.Error("Failed to get node user owner node", zap.Error(err))
 		return protocol.Response(c, constants.ErrInternalServer.AppendErrors(err), nil)
@@ -372,7 +372,7 @@ func (n *NodeHttpService) NodeUnregister(c echo.Context, req requests.NodeUnRegi
 		return protocol.Response(c, constants.ErrNodeUserNotOwnNode, nil)
 	}
 	// Unregister node user
-	if ok, err := n.unRegisterNodes(req.Name); err != nil || !ok {
+	if ok, err := n.unRegisterNodes(nodeId); err != nil || !ok {
 		logger.Error("Failed to unregister node user", zap.Error(err), zap.String("", req.Mail))
 		return protocol.Response(c, constants.ErrInternalServer, nil)
 	}

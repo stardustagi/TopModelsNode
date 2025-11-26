@@ -3,15 +3,14 @@ package models
 import (
 	"encoding/json"
 	"fmt"
-	"hash/crc64"
 	"time"
 )
 
 type LlmUsageReport struct {
 	Id                        string  `json:"id" xorm:"'id' not null pk VARCHAR(255)"`
-	NodeId                    string  `json:"node_id" xorm:"'node_id' VARCHAR(64)"`
+	NodeId                    int64   `json:"node_id" xorm:"'node_id' BIGINT(12)"`
 	Model                     string  `json:"model" xorm:"'model' VARCHAR(255)"`
-	ModelId                   string  `json:"model_id" xorm:"'model_id' VARCHAR(255)"`
+	ModelId                   int64   `json:"model_id" xorm:"'model_id' BIGINT(12)"`
 	ActualModel               string  `json:"actual_model" xorm:"'actual_model' VARCHAR(255)"`
 	Provider                  string  `json:"provider" xorm:"'provider' VARCHAR(255)"`
 	ActualProvider            string  `json:"actual_provider" xorm:"'actual_provider' VARCHAR(255)"`
@@ -34,10 +33,7 @@ func (o *LlmUsageReport) TableName() string {
 }
 
 func (o *LlmUsageReport) GetSliceName(slice string) string {
-	tbStr := crc64.MakeTable(crc64.ISO)
-	hash := crc64.Checksum([]byte(slice), tbStr)
-	idx := int(hash % 10)
-	return fmt.Sprintf("llm_usage_report_%d", idx)
+	return fmt.Sprintf("llm_usage_report_%s", slice)
 }
 
 func (o *LlmUsageReport) GetSliceDateMonthTable() string {

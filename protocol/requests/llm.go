@@ -72,9 +72,9 @@ type TokenUsage struct {
 }
 type UsageReport struct {
 	ID               string     `json:"id"`
-	NodeId           string     `json:"node_id"`
+	NodeId           int64      `json:"node_id"`
 	Model            string     `json:"model"`
-	ModelID          string     `json:"model_id"`     // 模型id（计费使用）
+	ModelID          int64      `json:"model_id"`     // 模型id（计费使用）
 	ActualModel      string     `json:"actual_model"` // 实际使用的模型
 	Provider         string     `json:"provider"`
 	ActualProvider   string     `json:"actual_provider"`    // 实际服务商
@@ -90,7 +90,7 @@ type UsageReport struct {
 }
 
 type NodeReportUsageReq struct {
-	NodeId string `json:"node_id" validate:"required"`
+	NodeId int64 `json:"node_id" validate:"required,gt=0"`
 	Report []UsageReport
 }
 

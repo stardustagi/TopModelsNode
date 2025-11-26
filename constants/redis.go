@@ -28,8 +28,8 @@ func NodeUserMailVerifyKey(nodeUserId int64) string {
 }
 
 // NodeAccessModelsKey 节点访问模型Key
-func NodeAccessModelsKey(nodeId string) string {
-	return fmt.Sprintf("node:access:%s", nodeId)
+func NodeAccessModelsKey(nodeId int64) string {
+	return fmt.Sprintf("node:access:%d", nodeId)
 }
 
 // NodeUserAccessTokenKey 节点用户访问Token Key
@@ -37,6 +37,10 @@ func NodeUserAccessTokenKey(nodeUserId int64) string {
 	return fmt.Sprintf("nodeUser:token:%d", nodeUserId)
 }
 
-func ModelsNodeKeepLiveKey(nodeName string) string {
-	return fmt.Sprintf("modelsNode:keepLive:%s", nodeName)
+func ModelsNodeKeepLiveKey(nodeId int64) string {
+	return fmt.Sprintf("modelsNode:keepLive:%d", nodeId)
+}
+
+func NodeInfoKey(nodeId int64) string {
+	return fmt.Sprintf("node:info:%d", nodeId)
 }

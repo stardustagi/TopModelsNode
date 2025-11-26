@@ -8,8 +8,7 @@ import (
 
 type ModelsProvider struct {
 	Id          int64  `json:"id" xorm:"'id' pk autoincr BIGINT(12)"`
-	ModelId     string `json:"model_id" xorm:"'model_id' comment('模型ID') VARCHAR(128)"`
-	NodeId      string `json:"node_id" xorm:"'node_id' VARCHAR(128)"`
+	OwnerId     int64  `json:"owner_id" xorm:"'owner_id' comment('模型供应商的nodeUserId') BIGINT(12)"`
 	ProviderId  string `json:"provider_id" xorm:"'provider_id' VARCHAR(128)"`
 	Type        string `json:"type" xorm:"'type' VARCHAR(64)"`
 	Name        string `json:"name" xorm:"'name' VARCHAR(128)"`
