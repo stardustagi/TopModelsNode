@@ -254,6 +254,7 @@ func (nus *NodeUsersHttpService) LoginFromByEmail(c echo.Context, req requests.L
 	}
 
 	// 9. 返回响应
+	c.Response().Header().Set("Access-Control-Expose-Headers", "id, jwt")
 	c.Response().Header().Add("jwt", jwtString)
 	c.Response().Header().Add("id", fmt.Sprintf("%d", user.Id))
 	resp.UserInfo = nus.convertToUserInfoResponse(user)
