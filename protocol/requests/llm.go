@@ -57,8 +57,8 @@ type NodeLoginReq struct {
 	Mail        string `json:"mail" validate:"required,email"`
 	Password    string `json:"password" validate:"required,min=6"`
 	AccessToken string `json:"access_token"`
-	//Name        string `json:"name"`
-	Once string `json:"once"`
+	Name        string `json:"name"`
+	Once        string `json:"once"`
 }
 
 // TokenUsage 记录 token 使用情况
@@ -97,4 +97,22 @@ type NodeReportUsageReq struct {
 type NodeUnRegisterReq struct {
 	Mail string `json:"mail" validate:"required,email"`
 	Name string `json:"name" validate:"required"`
+}
+
+type ModelMetrics struct {
+	Latency     float64 `json:"latency"`      // 平均延迟(秒)
+	HealthScore float64 `json:"health_score"` // 健康评分 0-100
+}
+
+type NodeKeepLiveModelInfo struct {
+	ModelId    int64        `json:"model_name"`
+	Metrics    ModelMetrics `json:"metrics"`
+	ExpireTime int64        `json:"expire_time"` // 模型过期时间
+	KeepLive   int64        `json:"keep_live"`   // 模型最后上报时间
+}
+
+type NodeKeepLiveReq struct {
+	NodeId   int64                   `json:"node_id" validate:"required,gt=0"`
+	NodeName string                  `json:"node_name" validate:"required"`
+	Info     []NodeKeepLiveModelInfo `json:"info"`
 }

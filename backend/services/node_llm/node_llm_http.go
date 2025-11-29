@@ -119,25 +119,13 @@ func (n *NodeHttpService) initialization() {
 	n.app.AddGroup("node/llm", server.Request(), backend.NodeAccess())
 	n.app.AddGroup("node/public", server.Request())
 	n.app.AddPostHandler("node/public", server.NewHandler(
-		"nodeKeepLive",
-		[]string{"nodeKeepLive", "public"},
+		"nodeLogin",
+		[]string{"nodeLogin", "public"},
 		n.NodeLogin))
-	//n.app.AddPostHandler("node/llm", server.NewHandler(
-	//	"UpsetModelsInfos",
-	//	[]string{"llm", "node"},
-	//	n.UpsetModelsInfos))
-	//n.app.AddPostHandler("node/llm", server.NewHandler(
-	//	"UpsetModelsProvider",
-	//	[]string{"llm", "node"},
-	//	n.UpsetModelsProvider))
-	//n.app.AddPostHandler("node/llm", server.NewHandler(
-	//	"MapModelsProviderInfoToNode",
-	//	[]string{"llm", "node"},
-	//	n.MapModelsProviderInfoToNode))
-	//n.app.AddPostHandler("node/llm", server.NewHandler(
-	//	"UpsetNodeInfos",
-	//	[]string{"llm", "node"},
-	//	n.UpsetNodeInfos))
+	n.app.AddPostHandler("node/llm", server.NewHandler(
+		"KeepLive",
+		[]string{"llm", "node"},
+		n.KeepLive))
 	n.app.AddPostHandler("node/llm", server.NewHandler(
 		"ListNodeInfos",
 		[]string{"llm", "node"},
@@ -151,12 +139,6 @@ func (n *NodeHttpService) initialization() {
 		[]string{"llm", "node"},
 		n.NodeUnregister))
 }
-
-// UpsetModelsInfos 添加模型信息
-// godoc
-// 添加模型信息
-// @Summary 添加模型信息
-// @Description 添加模型信息
 
 // ListNodeInfos 获取模型信息
 // godoc
@@ -189,6 +171,14 @@ func (n *NodeHttpService) ListNodeInfos(ctx echo.Context,
 }
 
 // NodeLogin 节点登录
+// @Summary 节点登录
+// @Description 节点登录
+// @Tags node
+// @Accept json
+// @Produce json
+// @Param request body requests.NodeLoginReq true "请求参数"
+// @Success 200 {object} responses.NodeLoginResp
+// @Router /node/public/nodeLogin [post]
 func (n *NodeHttpService) NodeLogin(ctx echo.Context, req requests.NodeLoginReq, resp responses.NodeLoginResp) error {
 	n.logger.Info("NodeLogin called", zap.String("nodeUserLogin", req.Mail))
 
@@ -231,6 +221,43 @@ func (n *NodeHttpService) NodeLogin(ctx echo.Context, req requests.NodeLoginReq,
 	}
 	resp.Config = modelsConfigs
 	return protocol.Response(ctx, nil, resp)
+}
+
+func (n *NodeHttpService) KeepLive(ctx echo.Context, req requests.NodeKeepLiveReq, resp responses.DefaultResponse) error {
+	n.logger.Info("Node KeepLive called", zap.Any("nodeId", req))
+	nodeUserId, err := n.getNodeUserIdFromContext(ctx)
+	if err != nil {
+		n.logger.Error("Node KeepLive get nodeId failed", zap.Error(err))
+		return protocol.Response(ctx, constants.ErrAuthFailed.AppendErrors(err), nil)
+	}
+	ok, nodeId, err := n.ownerNodeCheck(nodeUserId, req.NodeName)
+	if err != nil {
+		n.logger.Error("Node KeepLive check nodeId failed", zap.Error(err))
+		return protocol.Response(ctx, constants.ErrInternalServer.AppendErrors(err), nil)
+	}
+	if nodeId != req.NodeId || !ok {
+		n.logger.Error("Node KeepLive nodeId mismatch", zap.Int64("nodeIdFromContext", nodeId), zap.Int64("nodeIdFromReq", req.NodeId))
+		return protocol.Response(ctx, constants.ErrAuthFailed.AppendErrors(fmt.Errorf("节点ID不匹配")), nil)
+	}
+	// 更新心跳
+	keepLiveDatas := make([]NodeKeepLiveInfo, len(req.Info))
+	for i, info := range req.Info {
+		keepLiveDatas[i] = NodeKeepLiveInfo{
+			ModelId: info.ModelId,
+			Metrics: ModelMetrics{
+				Latency:     info.Metrics.Latency,
+				HealthScore: info.Metrics.HealthScore,
+			},
+			ExpireTime: info.ExpireTime,
+			KeepLive:   time.Now().Unix(),
+		}
+	}
+	err = n.updateNodeKeepLive(nodeId, keepLiveDatas)
+	if err != nil {
+		n.logger.Error("Node KeepLive update failed", zap.Error(err))
+		return protocol.Response(ctx, constants.ErrInternalServer.AppendErrors(err), nil)
+	}
+	return protocol.Response(ctx, nil, "keep live success")
 }
 
 // NodeBillingUsage 节点计费上报

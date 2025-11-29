@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/labstack/echo/v4"
 	"github.com/stardustagi/TopLib/libs/jwt"
 	"github.com/stardustagi/TopLib/libs/redis"
 	"github.com/stardustagi/TopLib/libs/uuid"
@@ -324,4 +325,12 @@ func (n *NodeHttpService) ownerNodeCheck(nodeUserId int64, name string) (bool, i
 	defer session.Close()
 	ok, err := session.FindOne(nodeInfo)
 	return ok, nodeInfo.Id, err
+}
+
+func (n *NodeHttpService) getNodeUserIdFromContext(ctx echo.Context) (int64, error) {
+	_id := ctx.Request().Header.Get("Id")
+	if _id == "" {
+		return 0, fmt.Errorf("用户ID不能为空")
+	}
+	return strconv.ParseInt(_id, 10, 64)
 }

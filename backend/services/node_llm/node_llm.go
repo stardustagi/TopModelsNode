@@ -21,12 +21,12 @@ func (n *NodeHttpService) updateNodeKeepLive(nodeId int64, keepInfo []NodeKeepLi
 	for _, info := range keepInfo {
 		keepLiveDataBytes, err := json.Marshal(info)
 		if err != nil {
-			n.logger.Error("模型KeepLive信息序列化失败", zap.Error(err), zap.String("modelName", info.ModelName))
+			n.logger.Error("模型KeepLive信息序列化失败", zap.Error(err), zap.Int64("modelName", info.ModelId))
 			return err
 		}
-		err = n.rds.HSet(n.ctx, modelKeepLiveKey, info.ModelName, keepLiveDataBytes)
+		err = n.rds.HSet(n.ctx, modelKeepLiveKey, fmt.Sprintf("%d", info.ModelId), keepLiveDataBytes)
 		if err != nil {
-			n.logger.Error("写入Redis模型KeepLive信息失败", zap.Error(err), zap.String("modelName", info.ModelName))
+			n.logger.Error("写入Redis模型KeepLive信息失败", zap.Error(err), zap.Int64("modelName", info.ModelId))
 			return err
 		}
 	}
@@ -46,31 +46,31 @@ func (n *NodeHttpService) writeModelInfo2Redis(nodeId int64, modelsInfo []ModelI
 		modelKey := fmt.Sprintf("%s", model.ID)
 		modelData, err := json.Marshal(model)
 		if err != nil {
-			n.logger.Error("模型序列化失败", zap.Error(err), zap.String("modelId", model.ID))
+			n.logger.Error("模型序列化失败", zap.Error(err), zap.Int64("modelId", model.ID))
 			return false, err
 		}
 		err = n.rds.HSet(n.ctx, nodeInfoKey, modelKey, modelData)
 		if err != nil {
-			n.logger.Error("写入Redis失败", zap.Error(err), zap.String("modelId", model.ID))
+			n.logger.Error("写入Redis失败", zap.Error(err), zap.Int64("modelId", model.ID))
 			return false, err
 		}
 		_ = n.rds.Expire(n.ctx, nodeInfoKey, constants.ModelsNodeExpireTimeString)
 		// 增加KeepLive key
 		modelKeepLiveKey := constants.ModelsNodeKeepLiveKey(nodeId)
 		keepLiveData := NodeKeepLiveInfo{
-			ModelName:  model.Name,
+			ModelId:    model.ID,
 			Metrics:    model.Metrics,
 			ExpireTime: model.ExpireTime,
 			KeepLive:   time.Now().Unix(),
 		}
 		keepLiveDataBytes, err := json.Marshal(keepLiveData)
 		if err != nil {
-			n.logger.Error("模型KeepLive信息序列化失败", zap.Error(err), zap.String("modelId", model.ID))
+			n.logger.Error("模型KeepLive信息序列化失败", zap.Error(err), zap.Int64("modelId", model.ID))
 			return false, err
 		}
 		err = n.rds.HSet(n.ctx, modelKeepLiveKey, modelKey, keepLiveDataBytes)
 		if err != nil {
-			n.logger.Error("写入Redis模型KeepLive信息失败", zap.Error(err), zap.String("modelId", model.ID))
+			n.logger.Error("写入Redis模型KeepLive信息失败", zap.Error(err), zap.Int64("modelId", model.ID))
 			return false, err
 		}
 		_ = n.rds.Expire(n.ctx, modelKeepLiveKey, constants.ModelsNodeExpireTimeString)
@@ -131,7 +131,7 @@ func (n *NodeHttpService) readModelInfo2DB(nodeId int64) ([]ModelInfo, error) {
 
 		// 组装ModelInfo
 		modelInfos = append(modelInfos, ModelInfo{
-			ID:          dbModel.ModelId,
+			ID:          dbModel.Id,
 			Name:        dbModel.Name,
 			APIVersion:  dbModel.ApiVersion,
 			DeployName:  dbModel.DeployName,

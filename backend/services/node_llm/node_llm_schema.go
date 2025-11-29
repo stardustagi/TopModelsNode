@@ -9,7 +9,7 @@ type ModelConfig struct {
 
 // ModelInfo 模型信息结构
 type ModelInfo struct {
-	ID          string     `json:"id"`
+	ID          int64      `json:"id"`
 	Name        string     `json:"name"`
 	APIVersion  string     `json:"api_version"`
 	DeployName  string     `json:"deploy_name"`
@@ -28,7 +28,7 @@ type ModelInfo struct {
 }
 
 type NodeKeepLiveInfo struct {
-	ModelName  string       `json:"model_name"`
+	ModelId    int64        `json:"model_id"`
 	Metrics    ModelMetrics `json:"metrics"`
 	ExpireTime int64        `json:"expire_time"` // 模型过期时间
 	KeepLive   int64        `json:"keep_live"`   // 模型最后上报时间
