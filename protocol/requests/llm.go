@@ -18,12 +18,11 @@ type AddModelsInfoRequest struct {
 }
 
 type UpsetNodeInfoRequest struct {
-	Name       string `json:"name"`
-	NodeUserId int64  `json:"node_user_id"`
-	Domain     string `json:"domain"`
-	AccessKey  string `json:"access_key"`
-	SecretKey  string `json:"secret_key"`
-	CompanyId  int64  `json:"company_id"`
+	Name      string `json:"name"`
+	Domain    string `json:"domain"`
+	AccessKey string `json:"access_key"`
+	SecretKey string `json:"secret_key"`
+	CompanyId int64  `json:"company_id"`
 }
 
 type ModelsProviderInfo struct {

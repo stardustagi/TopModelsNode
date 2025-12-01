@@ -115,31 +115,6 @@ func (n *NodeHttpService) Stop() {
 	n.logger.Info("UsersHttpService stopped.")
 }
 
-func (n *NodeHttpService) initialization() {
-	n.app.AddGroup("node/llm", server.Request(), backend.NodeAccess())
-	n.app.AddGroup("node/public", server.Request())
-	n.app.AddPostHandler("node/public", server.NewHandler(
-		"nodeLogin",
-		[]string{"nodeLogin", "public"},
-		n.NodeLogin))
-	n.app.AddPostHandler("node/llm", server.NewHandler(
-		"KeepLive",
-		[]string{"llm", "node"},
-		n.KeepLive))
-	n.app.AddPostHandler("node/llm", server.NewHandler(
-		"ListNodeInfos",
-		[]string{"llm", "node"},
-		n.ListNodeInfos))
-	n.app.AddPostHandler("node/llm", server.NewHandler(
-		"NodeBillingUsage",
-		[]string{"llm", "node"},
-		n.NodeBillingUsage))
-	n.app.AddPostHandler("node/llm", server.NewHandler(
-		"NodeUnregister",
-		[]string{"llm", "node"},
-		n.NodeUnregister))
-}
-
 // ListNodeInfos 获取模型信息
 // godoc
 // @Summary 获取模型信息

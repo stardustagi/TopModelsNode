@@ -729,6 +729,11 @@ func (nus *NodeUsersHttpService) UpsetNodeInfos(ctx echo.Context,
 	req requests.UpsetNodeInfoRequest,
 	resp responses.DefaultResponse) error {
 	nus.logger.Info("call UpsetNodeInfos", zap.Any("req", req))
+	nodeUserId, err := nus.getUserIdFromContext(ctx)
+	if err != nil {
+		nus.logger.Error("invalid user id", zap.Int64("nodeUserId", nodeUserId), zap.Error(err))
+		return protocol.Response(ctx, constants.ErrInvalidParams, nil)
+	}
 	session := nus.dao.NewSession()
 	defer session.Close()
 	if req.Name == "" {
@@ -736,11 +741,11 @@ func (nus *NodeUsersHttpService) UpsetNodeInfos(ctx echo.Context,
 	}
 	where := &models.Nodes{
 		Name:    req.Name,
-		OwnerId: req.NodeUserId,
+		OwnerId: nodeUserId,
 	}
 	bean := &models.Nodes{
 		Name:         req.Name,
-		OwnerId:      req.NodeUserId,
+		OwnerId:      nodeUserId,
 		AccessKey:    req.AccessKey,
 		SecurityKey:  req.SecretKey,
 		LastupdateAt: time.Now().Unix(),
