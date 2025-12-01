@@ -322,9 +322,9 @@ func (n *NodeHttpService) ownerNodeCheck(nodeUserId int64, name string) (bool, i
 }
 
 func (n *NodeHttpService) getNodeIdFromContext(ctx echo.Context) (int64, error) {
-	_id := ctx.Request().Header.Get("Id")
+	_id := ctx.Request().Header.Get("nodeId")
 	if _id == "" {
-		return 0, fmt.Errorf("用户ID不能为空")
+		return 0, fmt.Errorf("Node ID不能为空")
 	}
 	return strconv.ParseInt(_id, 10, 64)
 }
