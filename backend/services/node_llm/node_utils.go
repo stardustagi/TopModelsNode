@@ -33,7 +33,7 @@ func (n *NodeHttpService) updateNodeUser(nodeUser *models.NodeUsers) error {
 }
 
 // generateNodeLoginToken 生成用户Token
-func (n *NodeHttpService) generateNodeLoginToken(ak, once string, nodeUserId int64) (int64, string, string, error) {
+func (n *NodeHttpService) generateNodeLoginToken(ak, once string, nodeUserId int64) (*models.Nodes, string, error) {
 	// 生成Token
 	n.logger.Info("生成节点用户Token", zap.Int64("nodeUserId", nodeUserId), zap.String("accessKey", ak), zap.String("once", once))
 
@@ -41,7 +41,7 @@ func (n *NodeHttpService) generateNodeLoginToken(ak, once string, nodeUserId int
 	ok, err := n.rds.Exists(n.ctx, nodeUserKey)
 	if err != nil && !errors.Is(err, redis.Nil) {
 		n.logger.Error("检查Redis节点用户Token失败", zap.Error(err), zap.String("nodeUserKey", nodeUserKey))
-		return 0, "", "", err
+		return nil, "", err
 	}
 
 	// 生成token
@@ -56,7 +56,7 @@ func (n *NodeHttpService) generateNodeLoginToken(ak, once string, nodeUserId int
 	ok, err = n.dao.FindOne(nodeInfo)
 	if err != nil || !ok {
 		n.logger.Error("查找节点用户密钥失败", zap.Error(err), zap.String("accessKey", ak))
-		return 0, "", "", fmt.Errorf("节点用户密钥不存在，请联系管理员")
+		return nil, "", fmt.Errorf("节点用户密钥不存在，请联系管理员")
 	}
 	if nodeInfo.Name == "" {
 		n.logger.Debug("新节点，需要生成节点ID", zap.String("accessKey", ak))
@@ -66,28 +66,28 @@ func (n *NodeHttpService) generateNodeLoginToken(ak, once string, nodeUserId int
 	nodeAccessKey := constants.NodeAccessModelsKey(nodeInfo.Id)
 	if err = n.rds.HSet(n.ctx, nodeAccessKey, "token", []byte(token)); err != nil {
 		n.logger.Error("保存节点用户Token到Redis失败", zap.Error(err), zap.String("nodeAccessKey", nodeAccessKey))
-		return 0, "", "", err
+		return nil, "", err
 	}
 	err = n.rds.HSet(n.ctx, nodeAccessKey, "accessKey", []byte(ak))
 	if err != nil {
 		n.logger.Error("保存节点用户AccessKey到Redis失败", zap.Error(err), zap.String("nodeAccessKey", nodeAccessKey))
-		return 0, "", "", err
+		return nil, "", err
 	}
 	err = n.rds.HSet(n.ctx, nodeAccessKey, "securityKey", []byte(nodeInfo.SecurityKey))
 	if err != nil {
 		n.logger.Error("保存节点用户SecurityKey到Redis失败", zap.Error(err), zap.String("nodeAccessKey", nodeAccessKey))
-		return 0, "", "", err
+		return nil, "", err
 	}
 	err = n.rds.HSet(n.ctx, nodeAccessKey, "once", []byte(once))
 	if err != nil {
 		n.logger.Error("保存节点用户OnceToken到Redis失败", zap.Error(err), zap.String("nodeAccessKey", nodeAccessKey))
-		return 0, "", "", err
+		return nil, "", err
 	}
 	// 设置redis过期时间
 	err = n.rds.Expire(n.ctx, nodeAccessKey, constants.NodeUserTokenExpireTimeString)
 	if err != nil {
 		n.logger.Error("设置过期失败", zap.Error(err), zap.String("nodeAccessKey", nodeAccessKey))
-		return 0, "", "", err
+		return nil, "", err
 	}
 	// 组装密钥
 	jwtKey := fmt.Sprintf("%s-%s-%s-%s", ak, nodeInfo.SecurityKey, once, nodeInfo.Name)
@@ -101,9 +101,9 @@ func (n *NodeHttpService) generateNodeLoginToken(ak, once string, nodeUserId int
 		// 清理redis
 		_, err = n.rds.Del(n.ctx, nodeUserKey)
 		_, err = n.rds.Del(n.ctx, nodeAccessKey)
-		return 0, "", "", err
+		return nil, "", err
 	}
-	return nodeInfo.Id, nodeInfo.Name, jwtString, nil
+	return nodeInfo, jwtString, nil
 }
 
 func (n *NodeHttpService) generateNodeUserJwt(nodeUserId int64) (string, string, error) {

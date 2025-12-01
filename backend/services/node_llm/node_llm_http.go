@@ -204,19 +204,20 @@ func (n *NodeHttpService) NodeLogin(ctx echo.Context, req requests.NodeLoginReq,
 	n.logger.Info("节点用户登录成功", zap.String("email", nodeUser.Email))
 
 	// 生成Token
-	nodeId, name, jwtToken, err := n.generateNodeLoginToken(req.AccessToken, req.Once, nodeUser.Id)
+	nodeInfo, jwtToken, err := n.generateNodeLoginToken(req.AccessToken, req.Once, nodeUser.Id)
 	if err != nil {
 		n.logger.Error("节点用户Token生成失败", zap.String("email", nodeUser.Email), zap.Error(err))
 		return protocol.Response(ctx, constants.ErrAuthFailed.AppendErrors(err), nil)
 	}
 	// 查找 name
-	resp.NodeName = name
+	resp.NodeName = nodeInfo.Name
 	resp.Jwt = jwtToken
 	resp.Once = req.Once
 	resp.AccessKey = req.AccessToken
-	modelsConfigs, err := n.getNodeIdModelsInfo(nodeId)
+	resp.Address = nodeInfo.Domain
+	modelsConfigs, err := n.getNodeIdModelsInfo(nodeInfo.Id)
 	if err != nil {
-		n.logger.Error("获取节点模型配置失败", zap.String("nodeName", name), zap.Error(err))
+		n.logger.Error("获取节点模型配置失败", zap.String("nodeName", nodeInfo.Name), zap.Error(err))
 		return protocol.Response(ctx, constants.ErrInternalServer.AppendErrors(err), nil)
 	}
 	resp.Config = modelsConfigs

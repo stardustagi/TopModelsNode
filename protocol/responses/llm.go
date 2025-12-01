@@ -2,7 +2,7 @@ package responses
 
 type NodeLoginResp struct {
 	NodeName  string `json:"node_name"`
-	Ids       string `json:"ids"`
+	Address   string `json:"address"`
 	Jwt       string `json:"jwt"`
 	AccessKey string `json:"access_key"`
 	Once      string `json:"once"`
