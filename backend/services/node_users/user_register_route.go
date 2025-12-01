@@ -7,7 +7,7 @@ import (
 
 func (nus *NodeUsersHttpService) initialization() {
 	nus.app.AddGroup("users/public", server.Request())
-	nus.app.AddGroup("users", server.Request(), server.Cors(), backend.NodeUserAccess())
+	nus.app.AddGroup("users", server.Request(), backend.NodeUserAccess())
 
 	// 注册公开接口：用户注册和登录
 	nus.app.AddPostHandler("users/public", server.NewHandler(
