@@ -26,16 +26,21 @@ var (
 )
 
 var (
-	AppName    string
-	AppVersion string
+	AppName    string = "node"
+	AppVersion string = "v1"
 )
 
 func Init() {
-	AppName = os.Getenv("APP_NAME")
-	AppVersion = os.Getenv("APP_VERSION")
+	if os.Getenv("APP_NAME") != "" {
+		AppName = os.Getenv("APP_NAME")
+	}
+	if os.Getenv("APP_VERSION") != "" {
+		AppVersion = os.Getenv("APP_VERSION")
+	}
 	RedisPrefix = fmt.Sprintf("%s:%s", AppName, AppVersion)
 	ModelsKeyPrefix = fmt.Sprintf("%s:llm:models", RedisPrefix)
-	Debug = os.Getenv("DEBUG") != ""
+	NodeKeyPrefix = fmt.Sprintf("%s:node", RedisPrefix)
+	NodeUserKeyPrefix = fmt.Sprintf("%s:nodeUser", RedisPrefix)
 }
 
 // NodeUserTokenKey 节点用户TokenKey

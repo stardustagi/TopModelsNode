@@ -53,12 +53,10 @@ func (n *NodeHttpService) generateNodeLoginToken(ak, once string, nodeUserId int
 	}
 	// 设置节点用户密钥到Redis
 	nodeAccessKey := constants.NodeAccessModelsKey(nodeInfo.Id)
-	nodeUserKey := constants.NodeAccessKey(nodeUserId, ak)
+	nodeTokenKey := constants.NodeAccessKey(nodeInfo.Id, ak)
 	// 生成token
 	token := uuid.GenBytes(32)
-	err = n.rds.Set(n.ctx, nodeUserKey, token, constants.NodeUserTokenExpireTimeString)
-
-	if err = n.rds.HSet(n.ctx, nodeAccessKey, "token", []byte(token)); err != nil {
+	if err = n.rds.HSet(n.ctx, nodeAccessKey, "token", token); err != nil {
 		n.logger.Error("保存节点用户Token到Redis失败", zap.Error(err), zap.String("nodeAccessKey", nodeAccessKey))
 		return nil, "", err
 	}
@@ -85,7 +83,8 @@ func (n *NodeHttpService) generateNodeLoginToken(ak, once string, nodeUserId int
 	}
 	// 组装密钥
 	jwtKey := fmt.Sprintf("%s-%s-%s-%d", ak, nodeInfo.SecurityKey, once, nodeInfo.Id)
-	jwtString := jwt.JWTEncrypt(fmt.Sprintf("%d", nodeUserId), string(token), jwtKey)
+	n.logger.Info("生成节点用户JWT密钥", zap.String("jwtKey", jwtKey), zap.ByteString("token", token))
+	jwtString := jwt.JWTEncrypt(fmt.Sprintf("%d", nodeInfo.Id), string(token), jwtKey)
 
 	// 更新数据库
 	session := n.dao.NewSession()
@@ -93,7 +92,7 @@ func (n *NodeHttpService) generateNodeLoginToken(ak, once string, nodeUserId int
 	if err != nil {
 		n.logger.Error("更新节点用户密钥失败", zap.Error(err), zap.String("accessKey", ak))
 		// 清理redis
-		_, err = n.rds.Del(n.ctx, nodeUserKey)
+		_, err = n.rds.Del(n.ctx, nodeTokenKey)
 		_, err = n.rds.Del(n.ctx, nodeAccessKey)
 		return nil, "", err
 	}

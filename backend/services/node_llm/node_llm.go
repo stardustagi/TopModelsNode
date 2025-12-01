@@ -43,7 +43,7 @@ func (n *NodeHttpService) writeModelInfo2Redis(nodeId int64, modelsInfo []ModelI
 	nodeInfoKey := constants.NodeInfoKey(nodeId)
 	// 写入redis
 	for _, model := range modelsInfo {
-		modelKey := fmt.Sprintf("%s", model.ID)
+		modelKey := fmt.Sprintf("%d", model.ID)
 		modelData, err := json.Marshal(model)
 		if err != nil {
 			n.logger.Error("模型序列化失败", zap.Error(err), zap.Int64("modelId", model.ID))

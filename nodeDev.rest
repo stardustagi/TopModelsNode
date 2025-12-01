@@ -1,0 +1,41 @@
+### node dev login
+POST http://node.dev.topapi.ai/api/node/public/nodeLogin
+Content-Type: application/json
+
+{
+  "mail": "jxncyjq@gmail.com",
+  "password": "TestPassword123!",
+  "access_token" : "testak",
+  "name": "cloud",
+  "once" : "9925"
+}
+
+
+### node dev upset
+POST http://node.dev.topapi.ai/api/users/upsetNodeInfos
+Content-Type: application/json
+Id: 11
+Jwt: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjExIiwidG9rZW4iOiI0Njg5NTA1MTk1MjA0MjgwMzIiLCJpc3MiOiJhZG1pbiJ9.q8TgMI7E7YPqU-JTOteObr6aYlDRKFj4plejYiz3eWw
+
+
+{
+  "name": "gpt-1",
+  "node_user_id": 0,
+  "domain": "57.158.97.182:8833",
+  "access_key": "aktest10",
+  "secret_key": "sktest10",
+  "company_id": 0
+}
+
+
+### node
+
+### node dev keep live
+POST http://node.dev.topapi.ai/api/node/keepLive
+Content-Type: application/json
+Id: 11
+Jwt: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjExIiwidG9rZW4iOiI0Njg5NTA1MTk1MjA0MjgwMzIiLCJpc3MiOiJhZG1pbiJ9.q8TgMI7E7YPqU-JTOteObr6aYlDRKFj4plejYiz3eWw
+
+{
+  "node_user_id": 11
+}

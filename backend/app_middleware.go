@@ -34,7 +34,7 @@ func NodeAccess() echo.MiddlewareFunc {
 					"errmsg":  "Node ID格式错误",
 				})
 			}
-			nodeAccessKey := fmt.Sprintf("%s:%s", constants.NodeUserKeyPrefix, constants.NodeAccessModelsKey(nodeId))
+			nodeAccessKey := fmt.Sprintf("%s:%s", constants.NodeKeyPrefix, constants.NodeAccessModelsKey(nodeId))
 			secretKey, err := redisCmd.HGet(context.Background(), nodeAccessKey, "securityKey").Result()
 			if err != nil && errors.Is(err, redis.Nil) {
 				return c.JSON(401, map[string]any{
@@ -48,7 +48,7 @@ func NodeAccess() echo.MiddlewareFunc {
 					"errmsg":  "Node 信息错误，请联系管理员",
 				})
 			}
-			secret := fmt.Sprintf("%s-%s-%s-%s", accessKey, secretKey, once, nodeIdString)
+			secret := fmt.Sprintf("%s-%s-%s-%d", accessKey, secretKey, once, nodeId)
 			if jwtStr != "" {
 				jwtObj, ok := jwt.JWTDecrypt(jwtStr, secret)
 				if !ok || jwtObj == nil || jwtObj["token"] == nil || jwtObj["id"] == nil {
@@ -65,7 +65,8 @@ func NodeAccess() echo.MiddlewareFunc {
 						"errmsg":  "用户信息获取失败",
 					})
 				}
-				oldToken, err1 := redisCmd.HGet(context.Background(), nodeAccessKey, "token").Result()
+				nodeTokenKey := fmt.Sprintf("%s:access:%d", constants.NodeKeyPrefix, nodeId)
+				oldToken, err1 := redisCmd.HGet(context.Background(), nodeTokenKey, "token").Result()
 				if err1 != nil {
 					return c.JSON(401, map[string]any{
 						"errcode": 2,

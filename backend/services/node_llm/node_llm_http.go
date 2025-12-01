@@ -65,7 +65,7 @@ func NewNodeHttpService() *NodeHttpService {
 		dao:       databases.GetDao(),
 		stopCh:    make(chan struct{}),
 		rds: redis.NewRedisView(redis.GetRedisDb(),
-			constants.NodeUserKeyPrefix,
+			constants.NodeKeyPrefix,
 			logs.GetLogger("NodeUserRedis")),
 		notifyRds: redis.NewRedisView(redis.GetRedisDb(),
 			"",

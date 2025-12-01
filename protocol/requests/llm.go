@@ -103,7 +103,7 @@ type ModelMetrics struct {
 }
 
 type NodeKeepLiveModelInfo struct {
-	ModelId    int64        `json:"model_name"`
+	ModelId    int64        `json:"model_id"`
 	Metrics    ModelMetrics `json:"metrics"`
 	ExpireTime int64        `json:"expire_time"` // 模型过期时间
 	KeepLive   int64        `json:"keep_live"`   // 模型最后上报时间

@@ -19,7 +19,7 @@ var (
 
 // NodeAccessKey 节点访问Key
 func NodeAccessKey(nodeUserId int64, ak string) string {
-	return fmt.Sprintf("%d:%s", nodeUserId, ak)
+	return fmt.Sprintf("token:%d:%s", nodeUserId, ak)
 }
 
 // NodeUserMailVerifyKey 节点用户邮箱验证Key
@@ -29,7 +29,7 @@ func NodeUserMailVerifyKey(nodeUserId int64) string {
 
 // NodeAccessModelsKey 节点访问模型Key
 func NodeAccessModelsKey(nodeId int64) string {
-	return fmt.Sprintf("node:access:%d", nodeId)
+	return fmt.Sprintf("access:%d", nodeId)
 }
 
 // NodeUserAccessTokenKey 节点用户访问Token Key
@@ -38,9 +38,9 @@ func NodeUserAccessTokenKey(nodeUserId int64) string {
 }
 
 func ModelsNodeKeepLiveKey(nodeId int64) string {
-	return fmt.Sprintf("modelsNode:keepLive:%d", nodeId)
+	return fmt.Sprintf("keepLive:%d", nodeId)
 }
 
 func NodeInfoKey(nodeId int64) string {
-	return fmt.Sprintf("node:info:%d", nodeId)
+	return fmt.Sprintf("info:%d", nodeId)
 }
