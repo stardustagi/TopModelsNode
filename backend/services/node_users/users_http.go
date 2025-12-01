@@ -770,12 +770,17 @@ func (nus *NodeUsersHttpService) ListNodeInfos(ctx echo.Context,
 	nus.logger.Info("List Node Infos call", zap.Any("req", req))
 	session := nus.dao.NewSession()
 	defer session.Close()
+	nodeUserId, err := nus.getUserIdFromContext(ctx)
+	if err != nil {
+		nus.logger.Error("invalid user id", zap.Int64("nodeUserId", nodeUserId), zap.Error(err))
+		return protocol.Response(ctx, constants.ErrInvalidParams, nil)
+	}
 	// 默认排序
 	if req.PageInfo.Sort == "" {
 		req.PageInfo.Sort = "node_id asc"
 	}
 	result, err := session.CallProcedure("ListNodeUserNodeInfos",
-		req.NodeUserId, req.PageInfo.Limit, req.PageInfo.Skip, req.PageInfo.Sort)
+		nodeUserId, req.PageInfo.Limit, req.PageInfo.Skip, req.PageInfo.Sort)
 	if err != nil {
 		nus.logger.Error("ListNodeUserNodeInfos error:", zap.Error(err))
 		return protocol.Response(ctx, constants.ErrInternalServer.AppendErrors(err), nil)
