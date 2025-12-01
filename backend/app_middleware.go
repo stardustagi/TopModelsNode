@@ -34,7 +34,7 @@ func NodeAccess() echo.MiddlewareFunc {
 					"errmsg":  "Node ID格式错误",
 				})
 			}
-			nodeAccessKey := fmt.Sprintf("%s:%s", constants.ApplicationPrefix, constants.NodeAccessModelsKey(nodeId))
+			nodeAccessKey := fmt.Sprintf("%s:%s", constants.NodeUserKeyPrefix, constants.NodeAccessModelsKey(nodeId))
 			secretKey, err := redisCmd.HGet(context.Background(), nodeAccessKey, "securityKey").Result()
 			if err != nil && errors.Is(err, redis.Nil) {
 				return c.JSON(401, map[string]any{
