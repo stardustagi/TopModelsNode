@@ -321,7 +321,7 @@ func (n *NodeHttpService) ownerNodeCheck(nodeUserId int64, name string) (bool, i
 	return ok, nodeInfo.Id, err
 }
 
-func (n *NodeHttpService) getNodeUserIdFromContext(ctx echo.Context) (int64, error) {
+func (n *NodeHttpService) getNodeIdFromContext(ctx echo.Context) (int64, error) {
 	_id := ctx.Request().Header.Get("Id")
 	if _id == "" {
 		return 0, fmt.Errorf("用户ID不能为空")

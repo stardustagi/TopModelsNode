@@ -130,7 +130,7 @@ func (n *NodeHttpService) ListNodeInfos(ctx echo.Context,
 	n.logger.Info("List Node Infos call", zap.Any("req", req))
 	session := n.dao.NewSession()
 	defer session.Close()
-	nodeUserId, err := n.getNodeUserIdFromContext(ctx)
+	nodeUserId, err := n.getNodeIdFromContext(ctx)
 	if err != nil {
 		n.logger.Error("ListNodeInfos get nodeUserId failed", zap.Error(err))
 		return protocol.Response(ctx, constants.ErrAuthFailed.AppendErrors(err), nil)
@@ -210,17 +210,12 @@ func (n *NodeHttpService) NodeLogin(ctx echo.Context, req requests.NodeLoginReq,
 
 func (n *NodeHttpService) KeepLive(ctx echo.Context, req requests.NodeKeepLiveReq, resp responses.DefaultResponse) error {
 	n.logger.Info("Node KeepLive called", zap.Any("nodeId", req))
-	nodeUserId, err := n.getNodeUserIdFromContext(ctx)
+	nodeId, err := n.getNodeIdFromContext(ctx)
 	if err != nil {
 		n.logger.Error("Node KeepLive get nodeId failed", zap.Error(err))
 		return protocol.Response(ctx, constants.ErrAuthFailed.AppendErrors(err), nil)
 	}
-	ok, nodeId, err := n.ownerNodeCheck(nodeUserId, req.NodeName)
-	if err != nil {
-		n.logger.Error("Node KeepLive check nodeId failed", zap.Error(err))
-		return protocol.Response(ctx, constants.ErrInternalServer.AppendErrors(err), nil)
-	}
-	if nodeId != req.NodeId || !ok {
+	if nodeId != req.NodeId {
 		n.logger.Error("Node KeepLive nodeId mismatch", zap.Int64("nodeIdFromContext", nodeId), zap.Int64("nodeIdFromReq", req.NodeId))
 		return protocol.Response(ctx, constants.ErrAuthFailed.AppendErrors(fmt.Errorf("节点ID不匹配")), nil)
 	}
@@ -391,9 +386,4 @@ func (n *NodeHttpService) NodeUnregister(c echo.Context, req requests.NodeUnRegi
 
 	logger.Info("Successfully unregistered node user", zap.String("mail", req.Mail))
 	return protocol.Response(c, nil, "注销成功")
-}
-
-func (n *NodeHttpService) GetNodeModelsConfig(ctx echo.Context, req requests.DefaultRequest,
-	resp responses.DefaultResponse) error {
-	return nil
 }
