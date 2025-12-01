@@ -189,6 +189,7 @@ func (n *NodeHttpService) NodeLogin(ctx echo.Context, req requests.NodeLoginReq,
 		return protocol.Response(ctx, constants.ErrAuthFailed.AppendErrors(err), nil)
 	}
 	// 查找 name
+	resp.NodeId = nodeInfo.Id
 	resp.NodeName = nodeInfo.Name
 	resp.Jwt = jwtToken
 	resp.Once = req.Once

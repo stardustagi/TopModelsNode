@@ -1,6 +1,7 @@
 package responses
 
 type NodeLoginResp struct {
+	NodeId    int64  `json:"node_id"`
 	NodeName  string `json:"node_name"`
 	Address   string `json:"address"`
 	Jwt       string `json:"jwt"`
