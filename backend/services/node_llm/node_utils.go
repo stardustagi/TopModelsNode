@@ -1,7 +1,6 @@
 package node_llm
 
 import (
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -37,23 +36,13 @@ func (n *NodeHttpService) generateNodeLoginToken(ak, once string, nodeUserId int
 	// 生成Token
 	n.logger.Info("生成节点用户Token", zap.Int64("nodeUserId", nodeUserId), zap.String("accessKey", ak), zap.String("once", once))
 
-	nodeUserKey := constants.NodeAccessKey(nodeUserId, ak)
-	ok, err := n.rds.Exists(n.ctx, nodeUserKey)
-	if err != nil && !errors.Is(err, redis.Nil) {
-		n.logger.Error("检查Redis节点用户Token失败", zap.Error(err), zap.String("nodeUserKey", nodeUserKey))
-		return nil, "", err
-	}
-
-	// 生成token
-	token := uuid.GenBytes(32)
-	err = n.rds.Set(n.ctx, nodeUserKey, token, constants.NodeUserTokenExpireTimeString)
 	// 查找Ak对应的Sk
 	nodeInfo := &models.Nodes{
 		AccessKey: ak,
 		OwnerId:   nodeUserId,
 	}
 
-	ok, err = n.dao.FindOne(nodeInfo)
+	ok, err := n.dao.FindOne(nodeInfo)
 	if err != nil || !ok {
 		n.logger.Error("查找节点用户密钥失败", zap.Error(err), zap.String("accessKey", ak))
 		return nil, "", fmt.Errorf("节点用户密钥不存在，请联系管理员")
@@ -64,6 +53,11 @@ func (n *NodeHttpService) generateNodeLoginToken(ak, once string, nodeUserId int
 	}
 	// 设置节点用户密钥到Redis
 	nodeAccessKey := constants.NodeAccessModelsKey(nodeInfo.Id)
+	nodeUserKey := constants.NodeAccessKey(nodeUserId, ak)
+	// 生成token
+	token := uuid.GenBytes(32)
+	err = n.rds.Set(n.ctx, nodeUserKey, token, constants.NodeUserTokenExpireTimeString)
+
 	if err = n.rds.HSet(n.ctx, nodeAccessKey, "token", []byte(token)); err != nil {
 		n.logger.Error("保存节点用户Token到Redis失败", zap.Error(err), zap.String("nodeAccessKey", nodeAccessKey))
 		return nil, "", err
@@ -90,7 +84,7 @@ func (n *NodeHttpService) generateNodeLoginToken(ak, once string, nodeUserId int
 		return nil, "", err
 	}
 	// 组装密钥
-	jwtKey := fmt.Sprintf("%s-%s-%s-%s", ak, nodeInfo.SecurityKey, once, nodeInfo.Name)
+	jwtKey := fmt.Sprintf("%s-%s-%s-%d", ak, nodeInfo.SecurityKey, once, nodeInfo.Id)
 	jwtString := jwt.JWTEncrypt(fmt.Sprintf("%d", nodeUserId), string(token), jwtKey)
 
 	// 更新数据库
