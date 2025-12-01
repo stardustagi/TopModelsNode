@@ -49,8 +49,7 @@ type MapModelsProviderInfoToNodeRequest struct {
 }
 
 type ListNodeInfoRequest struct {
-	NodeUserId int64   `json:"node_user_id"`
-	PageInfo   PageReq `json:"page_info"`
+	PageInfo PageReq `json:"page_info"`
 }
 
 type NodeLoginReq struct {

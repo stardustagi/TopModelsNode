@@ -156,12 +156,17 @@ func (n *NodeHttpService) ListNodeInfos(ctx echo.Context,
 	n.logger.Info("List Node Infos call", zap.Any("req", req))
 	session := n.dao.NewSession()
 	defer session.Close()
+	nodeUserId, err := n.getNodeUserIdFromContext(ctx)
+	if err != nil {
+		n.logger.Error("ListNodeInfos get nodeUserId failed", zap.Error(err))
+		return protocol.Response(ctx, constants.ErrAuthFailed.AppendErrors(err), nil)
+	}
 	// 默认排序
 	if req.PageInfo.Sort == "" {
 		req.PageInfo.Sort = "node_id asc"
 	}
 	result, err := session.CallProcedure("ListNodeUserNodeInfos",
-		req.NodeUserId, req.PageInfo.Skip, req.PageInfo.Limit, req.PageInfo.Sort)
+		nodeUserId, req.PageInfo.Skip, req.PageInfo.Limit, req.PageInfo.Sort)
 	if err != nil {
 		n.logger.Error("ListNodeUserNodeInfos error:", zap.Error(err))
 		return protocol.Response(ctx, constants.ErrInternalServer.AppendErrors(err), nil)
