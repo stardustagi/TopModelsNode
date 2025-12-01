@@ -392,3 +392,8 @@ func (n *NodeHttpService) NodeUnregister(c echo.Context, req requests.NodeUnRegi
 	logger.Info("Successfully unregistered node user", zap.String("mail", req.Mail))
 	return protocol.Response(c, nil, "注销成功")
 }
+
+func (n *NodeHttpService) GetNodeModelsConfig(ctx echo.Context, req requests.DefaultRequest,
+	resp responses.DefaultResponse) error {
+	return nil
+}

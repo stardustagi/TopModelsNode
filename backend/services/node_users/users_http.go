@@ -573,6 +573,12 @@ func (nus *NodeUsersHttpService) UpsetModelsProvider(ctx echo.Context,
 	resp responses.DefaultResponse) error {
 	nus.logger.Info("UpsetModelsProvider is Called", zap.Any("req", req))
 	session := nus.dao.NewSession()
+	// 从 header 中获取用户 ID
+	userId, err := nus.getUserIdFromContext(ctx)
+	if err != nil {
+		nus.logger.Error("invalid user id", zap.Int64("userId", userId), zap.Error(err))
+		return protocol.Response(ctx, constants.ErrInvalidParams, nil)
+	}
 	defer session.Close()
 	// 1. 检查模型服务商是否存在
 	modelsProviders := make([]*models.ModelsProvider, len(req.ModelsProviderInfo))
@@ -581,6 +587,7 @@ func (nus *NodeUsersHttpService) UpsetModelsProvider(ctx echo.Context,
 			Name:     v.Name,
 			Type:     v.Type,
 			Endpoint: v.Endpoint,
+			OwnerId:  userId,
 		}
 		bean := &models.ModelsProvider{
 			Name:        v.Name,
@@ -591,6 +598,7 @@ func (nus *NodeUsersHttpService) UpsetModelsProvider(ctx echo.Context,
 			InputPrice:  v.InputPrice,
 			OutputPrice: v.OutputPrice,
 			CachePrice:  v.CachePrice,
+			OwnerId:     userId,
 			ApiKeys:     v.ApiKeys,
 			LastUpdate:  time.Now().Unix(),
 		}
