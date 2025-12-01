@@ -201,6 +201,10 @@ func (n *NodeHttpService) NodeLogin(ctx echo.Context, req requests.NodeLoginReq,
 		return protocol.Response(ctx, constants.ErrInternalServer.AppendErrors(err), nil)
 	}
 	resp.Config = modelsConfigs
+	ctx.Response().Header().Set("nodeId", fmt.Sprintf("%d", nodeInfo.Id))
+	ctx.Response().Header().Set("jwt", jwtToken)
+	ctx.Response().Header().Set("accessKey", req.AccessToken)
+	ctx.Response().Header().Set("once", req.Once)
 	return protocol.Response(ctx, nil, resp)
 }
 
