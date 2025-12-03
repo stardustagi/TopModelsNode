@@ -11,6 +11,7 @@ type ModelsInfo struct {
 	IsPrivate   int    `json:"is_private"`
 	OwnerId     int64  `json:"owner_id"`
 	Address     string `json:"address"`
+	ApiStyles   string `json:"api_styles"`
 }
 
 type AddModelsInfoRequest struct {

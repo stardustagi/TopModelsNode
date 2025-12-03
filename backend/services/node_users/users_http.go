@@ -524,6 +524,7 @@ func (nus *NodeUsersHttpService) UpsetModelsInfos(ctx echo.Context,
 			IsPrivate:   modelInfo.IsPrivate,
 			OwnerId:     modelInfo.OwnerId,
 			Address:     modelInfo.Address,
+			ApiStyles:   modelInfo.ApiStyles,
 			LastUpdate:  time.Now().Unix(),
 		}
 		_, err := session.Upsert(where, bean)
