@@ -286,24 +286,24 @@ func (n *NodeHttpService) NodeBillingUsage(ctx echo.Context, req requests.NodeRe
 		if u.Stream {
 			stream = 1
 		}
+		usage, err := json.Marshal(u.TokenUsage)
+		if err != nil {
+			n.logger.Error("使用量数据错亶在，跳过", zap.Int64("nodeId", req.NodeId), zap.Any("usage", u), zap.Error(err))
+			continue
+		}
 		record := &models.LlmUsageReport{
-			Id:                        u.ID,
-			NodeId:                    req.NodeId,
-			ModelId:                   u.ModelID,
-			ActualModel:               u.ActualModel,
-			Provider:                  u.Provider,
-			ActualProvider:            u.ActualProvider,
-			Caller:                    u.Caller,
-			CallerKey:                 u.CallerKey,
-			ClientVersion:             u.ClientVersion,
-			TokenUsageInputTokens:     u.TokenUsage.InputTokens,
-			TokenUsageOutputTokens:    u.TokenUsage.OutputTokens,
-			TokenUsageCachedTokens:    u.TokenUsage.CachedTokens,
-			TokenUsageReasoningTokens: u.TokenUsage.ReasoningTokens,
-			TokenUsageTokensPerSec:    u.TokenUsage.TokensPerSec,
-			TokenUsageLatency:         u.TokenUsage.Latency,
-			AgentVersion:              u.AgentVersion,
-			Stream:                    stream,
+			Id:             u.ID,
+			NodeId:         req.NodeId,
+			ModelId:        u.ModelID,
+			ActualModel:    u.ActualModel,
+			Provider:       u.Provider,
+			ActualProvider: u.ActualProvider,
+			Caller:         u.Caller,
+			CallerKey:      u.CallerKey,
+			ClientVersion:  u.ClientVersion,
+			AgentVersion:   u.AgentVersion,
+			Stream:         stream,
+			Usage:          string(usage),
 		}
 		tbName := record.GetSliceName(u.ID)
 		if ok, err := session.Native().IsTableExist(tbName); err != nil || !ok {
@@ -315,7 +315,7 @@ func (n *NodeHttpService) NodeBillingUsage(ctx echo.Context, req requests.NodeRe
 					nil)
 			}
 		}
-		_, err := session.Native().Table(tbName).Insert(&record)
+		_, err = session.Native().Table(tbName).Insert(&record)
 		if err != nil {
 			n.logger.Error("插入使用量报告失败", zap.Error(err), zap.String("table", tbName), zap.Any("usage", u))
 			return protocol.Response(ctx,

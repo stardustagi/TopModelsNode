@@ -68,6 +68,15 @@ type TokenUsage struct {
 	TokensPerSec    int     `json:"tokens_per_sec"`
 	Latency         float64 `json:"latency"`
 }
+
+type ReportType string
+
+const (
+	TextReportType  ReportType = "text"
+	ImageReportType ReportType = "image"
+	VideoReportType ReportType = "video"
+)
+
 type UsageReport struct {
 	ID               string     `json:"id"`
 	NodeId           int64      `json:"node_id"`
@@ -80,11 +89,13 @@ type UsageReport struct {
 	Caller           string     `json:"caller"`
 	CallerKey        string     `json:"caller_key"`
 	ClientVersion    string     `json:"client_version,omitempty"`
-	TokenUsage       TokenUsage `json:"token_usage"`
 	AgentVersion     string     `json:"agent_version,omitempty"`
 	Stream           bool       `json:"stream"`
-	CreatedAt        int64      `json:"created_at"`
-	IsPrivate        int        `json:"is_private"` // 是否私有模型
+	ReportType       ReportType `json:"report_type"`
+	TokenUsage       any        `json:"token_usage"`
+
+	CreatedAt int64 `json:"created_at"`
+	IsPrivate int   `json:"is_private"` // 是否私有模型
 }
 
 type NodeReportUsageReq struct {
