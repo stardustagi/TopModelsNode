@@ -116,7 +116,7 @@ func (n *NodeHttpService) readModelInfo2DB(nodeId int64) ([]ModelInfo, error) {
 				continue
 			}
 			providers = append(providers, Provider{
-				ID:          dbProvider.ProviderId,
+				ID:          dbProvider.Id,
 				Type:        dbProvider.Type,
 				Name:        dbProvider.Name,
 				Endpoint:    dbProvider.Endpoint,

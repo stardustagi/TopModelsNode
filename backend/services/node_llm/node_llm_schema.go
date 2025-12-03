@@ -42,7 +42,7 @@ type ModelMetrics struct {
 
 // Provider 提供商信息
 type Provider struct {
-	ID          string   `json:"id"`
+	ID          int64    `json:"id"`
 	Type        string   `json:"type"`
 	Name        string   `json:"name"`
 	Endpoint    string   `json:"endpoint"`
