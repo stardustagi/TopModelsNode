@@ -306,20 +306,20 @@ func (n *NodeHttpService) getNodeIdModelsInfo(nodeId int64) ([]ModelInfo, error)
 	n.logger.Info("GetNodeIdModelsInfo called", zap.Int64("nodeName", nodeId))
 
 	// 首先尝试从Redis读取
-	modelInfos, err := n.readModelInfo2Redis(nodeId)
-	if err != nil {
-		n.logger.Warn("从Redis读取模型信息失败，尝试从数据库读取",
-			zap.Error(err),
-			zap.Int64("nodeId", nodeId))
-	} else if len(modelInfos) > 0 {
-		n.logger.Info("从Redis成功读取模型信息",
-			zap.Int64("nodeId", nodeId),
-			zap.Int("modelCount", len(modelInfos)))
-		return modelInfos, nil
-	}
+	//modelInfos, err := n.readModelInfo2Redis(nodeId)
+	//if err != nil {
+	//	n.logger.Warn("从Redis读取模型信息失败，尝试从数据库读取",
+	//		zap.Error(err),
+	//		zap.Int64("nodeId", nodeId))
+	//} else if len(modelInfos) > 0 {
+	//	n.logger.Info("从Redis成功读取模型信息",
+	//		zap.Int64("nodeId", nodeId),
+	//		zap.Int("modelCount", len(modelInfos)))
+	//	return modelInfos, nil
+	//}
 
 	// Redis中没有数据，从数据库读取
-	modelInfos, err = n.readModelInfo2DB(nodeId)
+	modelInfos, err := n.readModelInfo2DB(nodeId)
 	if err != nil {
 		n.logger.Error("从数据库读取模型信息失败",
 			zap.Error(err),
