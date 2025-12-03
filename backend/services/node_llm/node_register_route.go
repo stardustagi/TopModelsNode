@@ -21,7 +21,7 @@ func (n *NodeHttpService) initialization() {
 		[]string{"llm", "node"},
 		n.ListNodeInfos))
 	n.app.AddPostHandler("node", server.NewHandler(
-		"NodeBillingUsage",
+		"nodeBillingUsage",
 		[]string{"llm", "node"},
 		n.NodeBillingUsage))
 	n.app.AddPostHandler("node", server.NewHandler(

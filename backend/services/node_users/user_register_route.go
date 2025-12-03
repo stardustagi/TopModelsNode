@@ -84,4 +84,8 @@ func (nus *NodeUsersHttpService) initialization() {
 		"ListNodeModelsProviderInfos",
 		[]string{"node", "llm", "ListNodeModelsProviderInfos"},
 		nus.ListNodeModelsProviderInfos))
+	nus.app.AddPostHandler("users", server.NewHandler(
+		"checkUserBalance",
+		[]string{"node", "user", "balance"},
+		nus.NodeCheckUserBalanceHandler))
 }
