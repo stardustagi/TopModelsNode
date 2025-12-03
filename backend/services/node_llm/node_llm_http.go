@@ -387,3 +387,43 @@ func (n *NodeHttpService) NodeUnregister(c echo.Context, req requests.NodeUnRegi
 	logger.Info("Successfully unregistered node user", zap.String("mail", req.Mail))
 	return protocol.Response(c, nil, "注销成功")
 }
+
+// CheckUserBalance 检查用户钱包
+// @Summary 检查用户钱包
+// @Description 检查用户钱包
+// @Tag 节点服务
+// @Accept json
+// @Produce json
+// @Param request body requests.UserBalanceReq true "请求参数"
+// @Success 200 {object} responses.UserBalanceResp
+// @Failure 400 {object} responses.DefaultResponse "参数错误"
+// @Failure 500 {object} responses.DefaultResponse "服务器错误"
+// @Router /node/llm/checkUserBalance [post]
+func (n *NodeHttpService) CheckUserBalance(ctx echo.Context,
+	req requests.UserBalanceReq, resp responses.UserBalanceResp) error {
+	n.logger.Info("CheckUserBalance", zap.Any("request", req))
+	nodeId, err := n.getNodeIdFromContext(ctx)
+	if err != nil {
+		n.logger.Error("invalid node id", zap.Error(err))
+		return protocol.Response(ctx, constants.ErrInvalidParams.AppendErrors(err), nil)
+	}
+	ok, err := n.NodeCheckin(nodeId)
+	if err != nil {
+		n.logger.Error("Node check fail", zap.Error(err))
+		return protocol.Response(ctx, constants.ErrInternalServer.AppendErrors(err), nil)
+	}
+	if !ok {
+		err = fmt.Errorf("node user does not own node %d", nodeId)
+		n.logger.Error("Node check fail", zap.Error(err))
+		return protocol.Response(ctx, constants.ErrNodeUserNotOwnNode, nil)
+	}
+	wallet, err := n.getUserWalletBalance(req.UserID, req.WalletType)
+	if err != nil {
+		return protocol.Response(ctx, constants.ErrGetUserBalance.AppendErrors(err), nil)
+	}
+	resp.Balance = wallet.Balance
+	resp.WalletType = wallet.WalletType
+	resp.WalletAddress = wallet.WalletAddress
+
+	return protocol.Response(ctx, nil, resp)
+}

@@ -28,4 +28,8 @@ func (n *NodeHttpService) initialization() {
 		"NodeUnregister",
 		[]string{"llm", "node"},
 		n.NodeUnregister))
+	n.app.AddPostHandler("node", server.NewHandler(
+		"checkUserBalance",
+		[]string{"llm", "node", "balance"},
+		n.CheckUserBalance))
 }

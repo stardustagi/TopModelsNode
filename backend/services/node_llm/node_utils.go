@@ -327,3 +327,23 @@ func (n *NodeHttpService) getNodeIdFromContext(ctx echo.Context) (int64, error) 
 	}
 	return strconv.ParseInt(_id, 10, 64)
 }
+
+func (n *NodeHttpService) getUserWalletBalance(userId int64, walletType string) (*models.UserWallet, error) {
+	session := n.dao.NewSession()
+	defer session.Close()
+
+	user := &models.UserWallet{
+		UserId:     userId,
+		WalletType: walletType,
+	}
+	ok, err := session.FindOne(user)
+	if err != nil {
+		n.logger.Error("Failed to find user by ID", zap.Error(err), zap.Int64("userID", userId))
+		return nil, err
+	}
+	if !ok {
+		n.logger.Debug("User not found", zap.Int64("userID", userId))
+		return nil, fmt.Errorf("user not found")
+	}
+	return user, nil
+}

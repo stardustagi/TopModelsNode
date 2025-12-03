@@ -468,7 +468,9 @@ func (nus *NodeUsersHttpService) ListUsers(c echo.Context, req requests.ListUser
 // @Failure 400 {object} responses.DefaultResponse
 // @Failure 500 {object} responses.DefaultResponse
 // @Router /node/user/checkUserBalance [post]
-func (nus *NodeUsersHttpService) NodeCheckUserBalanceHandler(ctx echo.Context, req requests.UserBalanceReq, resp responses.UserBalanceResp) error {
+func (nus *NodeUsersHttpService) NodeCheckUserBalanceHandler(ctx echo.Context,
+	req requests.UserBalanceReq,
+	resp responses.UserBalanceResp) error {
 	nus.logger.Info("NodeCheckUserBalanceHandler called", zap.Int64("userId", req.UserID), zap.String("walletType", req.WalletType))
 	nodeId, err := nus.getUserIdFromContext(ctx)
 	if err != nil {
