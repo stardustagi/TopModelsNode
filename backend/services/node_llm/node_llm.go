@@ -341,9 +341,9 @@ func (n *NodeHttpService) getNodeIdModelsInfo(nodeId int64) ([]ModelInfo, error)
 		zap.Int64("nodeId", nodeId),
 		zap.Int("modelCount", len(modelInfos)))
 
-	for _, modelInfo := range modelInfos {
-		modelInfos = append(modelInfos, modelInfo)
-	}
+	//for _, modelInfo := range modelInfos {
+	//	modelInfos = append(modelInfos, modelInfo)
+	//}
 
 	return modelInfos, nil
 }
