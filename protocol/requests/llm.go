@@ -55,9 +55,9 @@ type ListNodeInfoRequest struct {
 type NodeLoginReq struct {
 	Mail        string `json:"mail" validate:"required,email"`
 	Password    string `json:"password" validate:"required,min=6"`
-	AccessToken string `json:"access_token"`
+	AccessToken string `json:"access_token" validate:"required,min=6"`
 	Name        string `json:"name"`
-	Once        string `json:"once"`
+	Once        string `json:"once" validate:"required"`
 }
 
 // TokenUsage 记录 token 使用情况
