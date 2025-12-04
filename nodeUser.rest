@@ -1,5 +1,5 @@
 ### USER REG
-POST http://localhost:8080/api/users/system/register
+POST http://localhost:8081/api/users/public/register
 Content-Type: application/json
 
 {
@@ -8,4 +8,52 @@ Content-Type: application/json
   "phone": "18964479925",
   "email": "jxncyjq@gmail.com",
   "nickname": "Test User"
+}
+
+### USER LOGIN
+POST http://localhost:8081/api/users/public/login
+Content-Type: application/json
+
+{
+  "email": "jxncyjq@gmail.com",
+  "password": "TestPassword123!"
+}
+
+
+### Node Login
+POST http://localhost:8081/api/node/public/nodeLogin
+Content-Type: application/json
+
+{
+  "mail": "jxncyjq@gmail.com",
+  "password": "TestPassword123!",
+  "access_token" : "testak",
+  "name": "cloud",
+  "once" : "9925"
+}
+
+### keeplive
+POST http://localhost:8081/api/node/keepLive
+Content-Type: application/json
+jwt: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjIiLCJ0b2tlbiI6Ilx1MDAwMFx1MDAwMFx1MDAwMFx1MDAwMFx1MDAwMFx1MDAwMFx1MDAwMFx1MDAwMFx1MDAwMFx1MDAwMFx1MDAwMFx1MDAwMFx1MDAwMFx1MDAwMFx1MDAwMFx1MDAwMFx1MDAwMFx1MDAwMFx1MDAwMFx1MDAwMFx1MDAwMFx1MDAwMFx1MDAwMFx1MDAwMFx1MDAwMFx1MDAwMFx1MDAwMFx1MDAwMFx1MDAwMFx1MDAwMFx1MDAwMFx1MDAwMG9yMUlNa05rNEpnd2RFbWtHZndhM0xtRHVhaVhrbmtTIiwiaXNzIjoiYWRtaW4ifQ.TjRY4anYT2QyGrmnzmILKPXoD0VLs2kQwiVbz0sBB-E
+nodeId: 2
+accessKey: testak
+once: 9925
+
+
+{
+  "node_id": 2,
+  "node_name": "cloud",
+  "info": [
+    {
+      "model_id": 1,
+      "expire_time": 1700000000,
+      "keep_live": 5,
+      "metrics": {
+        "latency": 123,
+        "health_score" : 100
+      }
+    }
+  ]
+
 }
