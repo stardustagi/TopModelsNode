@@ -305,7 +305,7 @@ func (n *NodeHttpService) NodeBillingUsage(ctx echo.Context, req requests.NodeRe
 			Stream:         stream,
 			Usage:          string(usage),
 		}
-		tbName := record.GetSliceName(u.ID)
+		tbName := record.GetSliceName(u.ID, 10)
 		if ok, err := session.Native().IsTableExist(tbName); err != nil || !ok {
 			err = session.Native().Table(tbName).CreateTable(&record)
 			if err != nil {

@@ -27,8 +27,13 @@ func (o *LlmUsageReport) TableName() string {
 	return "llm_usage_report"
 }
 
-func (o *LlmUsageReport) GetSliceName(slice string) string {
-	return fmt.Sprintf("llm_usage_report_%s", slice)
+func (o *LlmUsageReport) GetSliceName(slice string, num uint32) string {
+	var hash uint32
+	for _, c := range slice {
+		hash = hash*31 + uint32(c)
+	}
+	shardIndex := hash % num
+	return fmt.Sprintf("llm_usage_report_%d", shardIndex)
 }
 
 func (o *LlmUsageReport) GetSliceDateMonthTable() string {
