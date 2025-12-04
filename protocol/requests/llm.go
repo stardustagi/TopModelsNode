@@ -4,14 +4,14 @@ type ModelsInfo struct {
 	Name        string `json:"name" validate:"required"`
 	ApiVersion  string `json:"api_version" validate:"required"`
 	DeployName  string `json:"deploy_name" validate:"required"`
-	InputPrice  int    `json:"input_price"`
-	OutputPrice int    `json:"output_price"`
-	CachePrice  int    `json:"cache_price"`
+	InputPrice  int    `json:"input_price" validate:"required"`
+	OutputPrice int    `json:"output_price" validate:"required"`
+	CachePrice  int    `json:"cache_price" validate:"required"`
 	Status      string `json:"status"`
 	IsPrivate   int    `json:"is_private"`
 	OwnerId     int64  `json:"owner_id"`
 	Address     string `json:"address"`
-	ApiStyles   string `json:"api_styles"`
+	ApiStyles   string `json:"api_styles" validate:"required"`
 }
 
 type AddModelsInfoRequest struct {
@@ -30,12 +30,12 @@ type ModelsProviderInfo struct {
 	Type        string `json:"type" validate:"required"`
 	Name        string `json:"name" validate:"required"`
 	Endpoint    string `json:"endpoint" validate:"required"`
-	ApiType     string `json:"api_type"`
-	ModelName   string `json:"model_name"`
+	ApiType     string `json:"api_type" validate:"required"`
+	ModelName   string `json:"model_name" validate:"required"`
 	InputPrice  int    `json:"input_price"`
 	OutputPrice int    `json:"output_price"`
 	CachePrice  int    `json:"cache_price"`
-	ApiKeys     string `json:"api_keys"`
+	ApiKeys     string `json:"api_keys" validate:"required"`
 }
 
 type AddModelsProviderInfoRequest struct {
