@@ -233,11 +233,17 @@ func (n *NodeHttpService) KeepLive(ctx echo.Context, req requests.NodeKeepLiveRe
 		}
 	}
 	err = n.updateNodeKeepLive(nodeId, keepLiveDatas)
+
 	if err != nil {
 		n.logger.Error("Node KeepLive update failed", zap.Error(err))
 		return protocol.Response(ctx, constants.ErrInternalServer.AppendErrors(err), nil)
 	}
-	return protocol.Response(ctx, nil, "keep live success")
+	data, err := n.getNodeIdModelsInfo(nodeId)
+	if err != nil {
+		n.logger.Error("Node KeepLive get models info failed", zap.Error(err))
+		return protocol.Response(ctx, constants.ErrInternalServer.AppendErrors(err), nil)
+	}
+	return protocol.Response(ctx, nil, data)
 }
 
 // NodeBillingUsage 节点计费上报

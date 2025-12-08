@@ -192,6 +192,24 @@ func (n *NodeHttpService) readModelInfo2Redis(nodeId int64) ([]ModelInfo, error)
 	return modelInfos, nil
 }
 
+func (n *NodeHttpService) RefreshNodeModelProviderMapCache(nodeId int64) error {
+	modelsInfo, err := n.readModelInfo2DB(nodeId)
+	if err != nil {
+		n.logger.Error("从数据库读取模型信息失败", zap.Error(err), zap.Int64("nodeId", nodeId))
+		return err
+	}
+	ok, err := n.writeModelInfo2Redis(nodeId, modelsInfo)
+	if err != nil {
+		n.logger.Error("写入Redis模型信息失败", zap.Error(err), zap.Int64("nodeId", nodeId))
+		return err
+	}
+	if !ok {
+		n.logger.Error("写入Redis模型信息失败", zap.Int64("nodeId", nodeId))
+		return fmt.Errorf("写入Redis模型信息失败")
+	}
+	return nil
+}
+
 // IsRunning 检查服务是否正在运行
 func (n *NodeHttpService) IsRunning() bool {
 	n.mu.RLock()
@@ -304,19 +322,6 @@ func (n *NodeHttpService) NodeCheckin(nodeId int64) (bool, error) {
 // getNodeIdModelsInfo 获取节点的模型信息
 func (n *NodeHttpService) getNodeIdModelsInfo(nodeId int64) ([]ModelInfo, error) {
 	n.logger.Info("GetNodeIdModelsInfo called", zap.Int64("nodeName", nodeId))
-
-	// 首先尝试从Redis读取
-	//modelInfos, err := n.readModelInfo2Redis(nodeId)
-	//if err != nil {
-	//	n.logger.Warn("从Redis读取模型信息失败，尝试从数据库读取",
-	//		zap.Error(err),
-	//		zap.Int64("nodeId", nodeId))
-	//} else if len(modelInfos) > 0 {
-	//	n.logger.Info("从Redis成功读取模型信息",
-	//		zap.Int64("nodeId", nodeId),
-	//		zap.Int("modelCount", len(modelInfos)))
-	//	return modelInfos, nil
-	//}
 
 	// Redis中没有数据，从数据库读取
 	modelInfos, err := n.readModelInfo2DB(nodeId)

@@ -688,6 +688,11 @@ func (nus *NodeUsersHttpService) MapModelsProviderInfoToNode(ctx echo.Context,
 			count++
 		}
 	}
+	err := llmSrv.RefreshNodeModelProviderMapCache(req.NodeId)
+	if err != nil {
+		nus.logger.Error("RefreshNodeModelProviderMapCache error:", zap.Error(err))
+		return protocol.Response(ctx, constants.ErrInternalServer.AppendErrors(err), nil)
+	}
 	return protocol.Response(ctx, nil, fmt.Sprintf("update success %d", count))
 }
 
