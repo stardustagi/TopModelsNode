@@ -674,6 +674,7 @@ func (nus *NodeUsersHttpService) MapModelsProviderInfoToNode(ctx echo.Context,
 	}
 	count := 0
 	for _, providerIds := range req.ProviderIds {
+		where.ModelProviderId = providerIds
 		nodeModelsInfoMap := &models.NodeModelsInfoMaps{
 			NodeId:          req.NodeId,
 			ModelId:         req.ModelId,
