@@ -21,14 +21,20 @@ type ModelsProvider struct {
 	ApiKeys     string `json:"api_keys" xorm:"'api_keys' comment('apikeys列表') TEXT"`
 	Deleted     int64  `json:"deleted" xorm:"'deleted' BIGINT(12)"`
 	LastUpdate  int64  `json:"last_update" xorm:"'last_update' BIGINT(12)"`
+	Quota       int64  `json:"quota" xorm:"'quota' comment('限额') BIGINT(12)"`
 }
 
 func (o *ModelsProvider) TableName() string {
 	return "models_provider"
 }
 
-func (o *ModelsProvider) GetSliceName(slice string) string {
-	return fmt.Sprintf("models_provider_%s", slice)
+func (o *ModelsProvider) GetSliceName(slice string, num uint32) string {
+	var hash uint32
+	for _, c := range slice {
+		hash = hash*31 + uint32(c)
+	}
+	shardIndex := hash % num
+	return fmt.Sprintf("models_provider_%d", shardIndex)
 }
 
 func (o *ModelsProvider) GetSliceDateMonthTable() string {

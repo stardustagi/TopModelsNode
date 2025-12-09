@@ -126,6 +126,7 @@ func (n *NodeHttpService) readModelInfo2DB(nodeId int64) ([]ModelInfo, error) {
 				InputPrice:  dbProvider.InputPrice,
 				OutputPrice: dbProvider.OutputPrice,
 				CachePrice:  dbProvider.CachePrice,
+				Quota:       dbProvider.Quota,
 			})
 		}
 

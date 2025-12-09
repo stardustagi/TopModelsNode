@@ -52,6 +52,7 @@ type Provider struct {
 	InputPrice  int      `json:"input_price"`  // 成本价
 	OutputPrice int      `json:"output_price"` // 成本价
 	CachePrice  int      `json:"cache_price"`  // 成本价
+	Quota       int64    `json:"quota"`        // 并发限制
 }
 
 // ProviderType 提供商类型枚举
