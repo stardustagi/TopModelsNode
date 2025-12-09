@@ -208,6 +208,15 @@ func (n *NodeHttpService) NodeLogin(ctx echo.Context, req requests.NodeLoginReq,
 	return protocol.Response(ctx, nil, resp)
 }
 
+// KeepLive 节点心跳
+// @Summary 节点心跳
+// @Description 节点心跳
+// @Tags node
+// @Accept json
+// @Produce json
+// @Param request body requests.NodeKeepLiveReq true "请求参数"
+// @Success 200 {object} responses.DefaultResponse
+// @Router /node/keepLive [post]
 func (n *NodeHttpService) KeepLive(ctx echo.Context, req requests.NodeKeepLiveReq, resp responses.DefaultResponse) error {
 	n.logger.Info("Node KeepLive called", zap.Any("nodeId", req))
 	nodeId, err := n.getNodeIdFromContext(ctx)
@@ -244,6 +253,29 @@ func (n *NodeHttpService) KeepLive(ctx echo.Context, req requests.NodeKeepLiveRe
 		return protocol.Response(ctx, constants.ErrInternalServer.AppendErrors(err), nil)
 	}
 	return protocol.Response(ctx, nil, data)
+}
+
+// GetNodeModelsInfo 获取节点模型信息
+// @Summary 获取节点模型信息
+// @Description 获取节点模型信息
+// @Tags node
+// @Accept json
+// @Produce json
+// @Success 200 {object} responses.DefaultResponse
+// @Router /node/modelsInfo [get]
+func (n *NodeHttpService) GetNodeModelsInfo(ctx echo.Context, req requests.DefaultRequest, resp responses.DefaultResponse) error {
+	n.logger.Info("GetNodeModelsInfo called")
+	nodeId, err := n.getNodeIdFromContext(ctx)
+	if err != nil {
+		n.logger.Error("GetNodeModelsInfo get nodeId failed", zap.Error(err))
+		return protocol.Response(ctx, constants.ErrAuthFailed.AppendErrors(err), nil)
+	}
+	modelsInfo, err := n.getNodeIdModelsInfo(nodeId)
+	if err != nil {
+		n.logger.Error("GetNodeModelsInfo get models info failed", zap.Error(err))
+		return protocol.Response(ctx, constants.ErrInternalServer.AppendErrors(err), nil)
+	}
+	return protocol.Response(ctx, nil, modelsInfo)
 }
 
 // NodeBillingUsage 节点计费上报

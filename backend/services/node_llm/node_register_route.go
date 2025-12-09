@@ -12,10 +12,14 @@ func (n *NodeHttpService) initialization() {
 		"nodeLogin",
 		[]string{"nodeLogin", "public"},
 		n.NodeLogin))
-	n.app.AddPostHandler("node", server.NewHandler(
+	n.app.AddPostHandler("node/public", server.NewHandler(
 		"keepLive",
 		[]string{"llm", "node"},
 		n.KeepLive))
+	n.app.AddPostHandler("node/public", server.NewHandler(
+		"getNodeModelsInfo",
+		[]string{"llm", "node"},
+		n.GetNodeModelsInfo))
 	n.app.AddPostHandler("node", server.NewHandler(
 		"ListNodeInfos",
 		[]string{"llm", "node"},
