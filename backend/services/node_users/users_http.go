@@ -722,14 +722,73 @@ func (nus *NodeUsersHttpService) ListNodeModelsProviderInfos(ctx echo.Context,
 		nus.logger.Error("invalid user id", zap.Int64("nodeUserId", nodeUserId), zap.Error(err))
 		return protocol.Response(ctx, constants.ErrInvalidParams, nil)
 	}
-	result, err := session.CallProcedure("ListNodeModelsProviderInfos",
+	rawResult, err := session.CallProcedure("ListNodeModelsProviderInfos",
 		nodeUserId, req.Limit, req.Skip, req.Sort)
 	if err != nil {
 		nus.logger.Error("ListNodeModelsProviderInfos error:", zap.Error(err))
 		return protocol.Response(ctx, constants.ErrInternalServer.AppendErrors(err), nil)
 	}
 
-	return protocol.Response(ctx, nil, result)
+	listRows := rawResult[0]
+	totalCountRows := rawResult[1]
+
+	// 合并结果
+	modelMap := make(map[int64]map[string]interface{})
+
+	for _, row := range listRows {
+		modelID := row["model_id"].(int64)
+
+		if _, exists := modelMap[modelID]; !exists {
+			modelMap[modelID] = map[string]interface{}{
+				"model_id":      modelID,
+				"model_name":    row["model_name"],
+				"model_status":  row["model_status"],
+				"model_pk_id":   row["model_pk_id"],
+				"model_address": row["model_address"],
+				"node_id":       row["node_id"],
+				"node_name":     row["node_full_name"],
+				"providers":     []map[string]interface{}{},
+			}
+		}
+
+		// 提取 provider 信息
+		providerInfo := map[string]interface{}{
+			"provider_pk_id":        row["provider_pk_id"],
+			"provider_name":         row["provider_name"],
+			"provider_type":         row["provider_type"],
+			"provider_input_price":  row["provider_input_price"],
+			"provider_output_price": row["provider_output_price"],
+			"provider_cache_price":  row["provider_cache_price"],
+			"api_keys":              row["api_keys"],
+			"api_type":              row["api_type"],
+			"api_version":           row["api_version"],
+			"provider_model_name":   row["provider_model_name"],
+			"endpoint":              row["endpoint"],
+		}
+
+		// 添加到 provider 数组
+		modelMap[modelID]["providers"] = append(
+			modelMap[modelID]["providers"].([]map[string]interface{}),
+			providerInfo,
+		)
+	}
+
+	// 转为数组
+	var mergedList []map[string]interface{}
+	for _, item := range modelMap {
+		mergedList = append(mergedList, item)
+	}
+
+	// 获取总数
+	var total int64
+	if len(totalCountRows) > 0 {
+		total = totalCountRows[0]["total_count"].(int64)
+	}
+
+	return protocol.Response(ctx, nil, map[string]interface{}{
+		"list":  mergedList,
+		"total": total,
+	})
 }
 
 // UpsetNodeInfos 添加/更新节点信息
