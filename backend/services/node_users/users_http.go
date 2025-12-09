@@ -697,6 +697,38 @@ func (nus *NodeUsersHttpService) MapModelsProviderInfoToNode(ctx echo.Context,
 	return protocol.Response(ctx, nil, fmt.Sprintf("update success %d", count))
 }
 
+func (nus *NodeUsersHttpService) UnMapModelsProviderInfoToNode(ctx echo.Context,
+	req requests.UnMapModelsProviderInfoToNodeRequest,
+	resp responses.DefaultResponse) error {
+	nus.logger.Info("call UnMapModelsProviderInfoToNode", zap.Any("req", req))
+	session := nus.dao.NewSession()
+	defer session.Close()
+
+	// 删除 NodeModelsInfoMaps 中的记录
+	count := 0
+	for _, providerId := range req.MapIds {
+		where := &models.NodeModelsInfoMaps{
+			Id: providerId,
+		}
+		if _, err := session.Delete(where); err != nil {
+			nus.logger.Error("delete NodeModelsInfoMaps error:", zap.Error(err))
+			continue
+		} else {
+			count++
+		}
+	}
+
+	// 刷新缓存
+	llmSrv := node_llm.GetNodeHttpServiceInstance()
+	err := llmSrv.RefreshNodeModelProviderMapCache(req.NodeId)
+	if err != nil {
+		nus.logger.Error("RefreshNodeModelProviderMapCache error:", zap.Error(err))
+		return protocol.Response(ctx, constants.ErrInternalServer.AppendErrors(err), nil)
+	}
+
+	return protocol.Response(ctx, nil, fmt.Sprintf("unmap success %d", count))
+}
+
 // ListNodeModelsProviderInfos 获取节点模型供应商信息
 // godoc
 // @Summary 获取节点模型供应商信息

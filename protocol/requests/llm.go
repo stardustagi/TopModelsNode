@@ -48,6 +48,10 @@ type MapModelsProviderInfoToNodeRequest struct {
 	ProviderIds []int64 `json:"provider_ids" validate:"required"`
 }
 
+type UnMapModelsProviderInfoToNodeRequest struct {
+	NodeId int64   `json:"node_id" validate:"required"`
+	MapIds []int64 `json:"map_ids" validate:"required"`
+}
 type ListNodeInfoRequest struct {
 	PageInfo PageReq `json:"page_info"`
 }

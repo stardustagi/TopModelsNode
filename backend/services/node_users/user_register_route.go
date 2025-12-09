@@ -81,6 +81,10 @@ func (nus *NodeUsersHttpService) initialization() {
 		[]string{"node", "llm", "MapModelsProviderInfoToNode"},
 		nus.MapModelsProviderInfoToNode))
 	nus.app.AddPostHandler("users", server.NewHandler(
+		"UnMapModelsProviderInfoToNode",
+		[]string{"node", "llm", "UnMapModelsProviderInfoToNode"},
+		nus.UnMapModelsProviderInfoToNode))
+	nus.app.AddPostHandler("users", server.NewHandler(
 		"ListNodeModelsProviderInfos",
 		[]string{"node", "llm", "ListNodeModelsProviderInfos"},
 		nus.ListNodeModelsProviderInfos))
