@@ -39,6 +39,7 @@ type ModelsProviderInfo struct {
 }
 
 type AddModelsProviderInfoRequest struct {
+	Id                 int64                `json:"id"`
 	ModelsProviderInfo []ModelsProviderInfo `json:"models_provider_info"`
 }
 

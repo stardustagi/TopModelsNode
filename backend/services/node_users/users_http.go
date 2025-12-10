@@ -583,37 +583,62 @@ func (nus *NodeUsersHttpService) UpsetModelsProvider(ctx echo.Context,
 		return protocol.Response(ctx, constants.ErrInvalidParams, nil)
 	}
 	defer session.Close()
-	// 1. 检查模型服务商是否存在
-	modelsProviders := make([]*models.ModelsProvider, len(req.ModelsProviderInfo))
-	for _, v := range req.ModelsProviderInfo {
-		where := &models.ModelsProvider{
-			Name:     v.Name,
-			Type:     v.Type,
-			Endpoint: v.Endpoint,
-			OwnerId:  userId,
+	if req.Id == 0 {
+		// 添加
+		modelsProviders := make([]*models.ModelsProvider, len(req.ModelsProviderInfo))
+		for _, v := range req.ModelsProviderInfo {
+			bean := &models.ModelsProvider{
+				Name:        v.Name,
+				Type:        v.Type,
+				Endpoint:    v.Endpoint,
+				ApiType:     v.ApiType,
+				ModelName:   v.ModelName,
+				InputPrice:  v.InputPrice,
+				OutputPrice: v.OutputPrice,
+				CachePrice:  v.CachePrice,
+				OwnerId:     userId,
+				ApiKeys:     v.ApiKeys,
+				LastUpdate:  time.Now().Unix(),
+			}
+			_, err := session.InsertOne(bean)
+			if err != nil {
+				nus.logger.Info("databases error：", zap.Error(err))
+				continue
+			}
+			//modelsProviders = append(modelsProviders, modelsProvider)
 		}
-		bean := &models.ModelsProvider{
-			Name:        v.Name,
-			Type:        v.Type,
-			Endpoint:    v.Endpoint,
-			ApiType:     v.ApiType,
-			ModelName:   v.ModelName,
-			InputPrice:  v.InputPrice,
-			OutputPrice: v.OutputPrice,
-			CachePrice:  v.CachePrice,
-			OwnerId:     userId,
-			ApiKeys:     v.ApiKeys,
-			LastUpdate:  time.Now().Unix(),
+		return protocol.Response(ctx, nil, modelsProviders)
+	} else {
+		// 1. 检查模型服务商是否存在
+		modelsProviders := make([]*models.ModelsProvider, len(req.ModelsProviderInfo))
+		for _, v := range req.ModelsProviderInfo {
+			where := &models.ModelsProvider{
+				Id:      req.Id,
+				OwnerId: userId,
+			}
+			bean := &models.ModelsProvider{
+				Name:        v.Name,
+				Type:        v.Type,
+				Endpoint:    v.Endpoint,
+				ApiType:     v.ApiType,
+				ModelName:   v.ModelName,
+				InputPrice:  v.InputPrice,
+				OutputPrice: v.OutputPrice,
+				CachePrice:  v.CachePrice,
+				OwnerId:     userId,
+				ApiKeys:     v.ApiKeys,
+				LastUpdate:  time.Now().Unix(),
+			}
+			//modelsProvider := &models.ModelsProvider{}
+			_, err := session.Upsert(where, bean)
+			if err != nil {
+				nus.logger.Info("databases error：", zap.Error(err))
+				continue
+			}
+			//modelsProviders = append(modelsProviders, modelsProvider)
 		}
-		modelsProvider := &models.ModelsProvider{}
-		_, err := session.Upsert(where, bean)
-		if err != nil {
-			nus.logger.Info("databases error：", zap.Error(err))
-			continue
-		}
-		modelsProviders = append(modelsProviders, modelsProvider)
+		return protocol.Response(ctx, nil, modelsProviders)
 	}
-	return protocol.Response(ctx, nil, modelsProviders)
 }
 
 func (nus *NodeUsersHttpService) ListModelsProviderInfos(ctx echo.Context,
