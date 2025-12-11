@@ -596,7 +596,13 @@ func (nus *NodeUsersHttpService) UpsertModelsProvider(ctx echo.Context,
 	for _, v := range req.ModelsProviderInfo {
 		if v.Id == 0 {
 			where = &models.ModelsProvider{
-				OwnerId: userId,
+				OwnerId:   userId,
+				Name:      v.Name,
+				Type:      v.Type,
+				Endpoint:  v.Endpoint,
+				ApiType:   v.ApiType,
+				ModelName: v.ModelName,
+				ApiKeys:   v.ApiKeys,
 			}
 		} else {
 			where = &models.ModelsProvider{
