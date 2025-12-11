@@ -40,6 +40,7 @@ func (n *NodeHttpService) generateNodeLoginToken(ak, once string, nodeUserId int
 	nodeInfo := &models.Nodes{
 		AccessKey: ak,
 		OwnerId:   nodeUserId,
+		Status:    1,
 	}
 
 	ok, err := n.dao.FindOne(nodeInfo)
@@ -238,15 +239,6 @@ func (n *NodeHttpService) handleModelKeyExpiration(expiredKey string) error {
 		zap.Int64("nodeId", nodeId),
 		zap.Int("modelCount", len(modelInfos)))
 
-	// 更新模型状态为offline
-	err = n.updateModelStatusToOffline(nodeId)
-	if err != nil {
-		n.logger.Error("更新模型状态为offline失败",
-			zap.Error(err),
-			zap.Int64("nodeId", nodeId))
-		return err
-	}
-
 	n.logger.Info("成功处理模型键过期事件",
 		zap.String("key", expiredKey),
 		zap.Int64("nodeId", nodeId))
@@ -263,9 +255,18 @@ func (n *NodeHttpService) handleModelKeyExpiration(expiredKey string) error {
 
 // updateModelStatusToOffline 将指定nodeId的所有模型状态更新为offline
 func (n *NodeHttpService) updateModelStatusToOffline(nodeId int64) error {
-	// todo : 修改模型状态为离线
-	n.logger.Info("更新模型状态为offline", zap.Int64("modeId", nodeId))
+	n.logger.Info("更新模型状态为offline", zap.Int64("nodeId", nodeId))
 
+	session := n.dao.NewSession()
+	defer session.Close()
+	bean := &models.Nodes{
+		Status: 0,
+	}
+
+	_, err := session.UpdateById(nodeId, bean)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

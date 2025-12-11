@@ -16,14 +16,20 @@ type Nodes struct {
 	AccessKey    string `json:"access_key" xorm:"'access_key' comment('ak') VARCHAR(255)"`
 	SecurityKey  string `json:"security_key" xorm:"'security_key' comment('sk') VARCHAR(255)"`
 	CompanyId    int64  `json:"company_id" xorm:"'company_id' comment('企业ID') BIGINT(12)"`
+	Status       int    `json:"status" xorm:"'status' comment('节点状态') TINYINT(1)"`
 }
 
 func (o *Nodes) TableName() string {
 	return "nodes"
 }
 
-func (o *Nodes) GetSliceName(slice string) string {
-	return fmt.Sprintf("nodes_%s", slice)
+func (o *Nodes) GetSliceName(slice string, num uint32) string {
+	var hash uint32
+	for _, c := range slice {
+		hash = hash*31 + uint32(c)
+	}
+	shardIndex := hash % num
+	return fmt.Sprintf("nodes_%d", shardIndex)
 }
 
 func (o *Nodes) GetSliceDateMonthTable() string {

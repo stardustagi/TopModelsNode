@@ -55,7 +55,7 @@ func (nus *NodeUsersHttpService) initialization() {
 	nus.app.AddPostHandler("users", server.NewHandler(
 		"upsetModelsInfos",
 		[]string{"node", "llm", "upsetModelsInfos"},
-		nus.UpsetModelsInfos))
+		nus.UpsertModelsInfos))
 	nus.app.AddPostHandler("users", server.NewHandler(
 		"listModelsInfos",
 		[]string{"node", "llm", "upsetModelsInfos"},
@@ -63,7 +63,7 @@ func (nus *NodeUsersHttpService) initialization() {
 	nus.app.AddPostHandler("users", server.NewHandler(
 		"upsetModelsProvider",
 		[]string{"node", "llm", "upsetModelsProvider"},
-		nus.UpsetModelsProvider))
+		nus.UpsertModelsProvider))
 	nus.app.AddPostHandler("users", server.NewHandler(
 		"listModelsProviderInfos",
 		[]string{"node", "llm", "listModelsProviderInfos"},
@@ -71,7 +71,7 @@ func (nus *NodeUsersHttpService) initialization() {
 	nus.app.AddPostHandler("users", server.NewHandler(
 		"upsetNodeInfos",
 		[]string{"node", "llm", "upsetNodeInfos"},
-		nus.UpsetNodeInfos))
+		nus.UpsertNodeInfos))
 	nus.app.AddPostHandler("users", server.NewHandler(
 		"listNodeInfos",
 		[]string{"node", "llm", "upsetNodeInfos"},

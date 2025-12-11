@@ -1,6 +1,7 @@
 package requests
 
 type ModelsInfo struct {
+	Id          int64  `json:"id"`
 	Name        string `json:"name" validate:"required"`
 	ApiVersion  string `json:"api_version" validate:"required"`
 	DeployName  string `json:"deploy_name" validate:"required"`
@@ -14,11 +15,12 @@ type ModelsInfo struct {
 	ApiStyles   string `json:"api_styles" validate:"required"`
 }
 
-type AddModelsInfoRequest struct {
+type UpsertModelsInfoRequest struct {
 	ModelsInfos []ModelsInfo `json:"models_infos"`
 }
 
 type UpsetNodeInfoRequest struct {
+	Id        int64  `json:"id"`
 	Name      string `json:"name"`
 	Domain    string `json:"domain"`
 	AccessKey string `json:"access_key"`
@@ -27,6 +29,7 @@ type UpsetNodeInfoRequest struct {
 }
 
 type ModelsProviderInfo struct {
+	Id          int64  `json:"id"`
 	Type        string `json:"type" validate:"required"`
 	Name        string `json:"name" validate:"required"`
 	Endpoint    string `json:"endpoint" validate:"required"`
@@ -38,8 +41,7 @@ type ModelsProviderInfo struct {
 	ApiKeys     string `json:"api_keys" validate:"required"`
 }
 
-type AddModelsProviderInfoRequest struct {
-	Id                 int64                `json:"id"`
+type UpsertModelsProviderInfoRequest struct {
 	ModelsProviderInfo []ModelsProviderInfo `json:"models_provider_info"`
 }
 
