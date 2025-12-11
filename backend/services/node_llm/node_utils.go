@@ -40,7 +40,6 @@ func (n *NodeHttpService) generateNodeLoginToken(ak, once string, nodeUserId int
 	nodeInfo := &models.Nodes{
 		AccessKey: ak,
 		OwnerId:   nodeUserId,
-		Status:    1,
 	}
 
 	ok, err := n.dao.FindOne(nodeInfo)
