@@ -140,6 +140,10 @@ func (h *Application) syncDatabaseSchema() {
 		&models.UserWallet{},
 		&models.Users{},
 		&models.UsersKey{},
+		&models.UserConsumeDetailText{},
+		&models.UserConsumeDetailImage{},
+		&models.UserConsumeDetailVideo{},
+		&models.ModelsTieredPricing{},
 	}
 	dbDao := databases.GetDao()
 	if err := dbDao.Native().Sync2(modelList...); err != nil {

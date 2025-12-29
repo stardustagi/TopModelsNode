@@ -6,33 +6,34 @@ import (
 	"time"
 )
 
-// UserConsumeRecord 表示用户消费记录
 type UserConsumeRecord struct {
-	Id               int64  `xorm:"pk autoincr comment('主键，自增')" json:"id"`                   // 主键，自增
-	UserId           int64  `xorm:"user_id int notnull index comment('用户ID')" json:"user_id"` // 用户ID
-	NodeId           string `json:"node_id" xorm:"'node_id' VARCHAR(64)"`
-	TotalConsumed    int64  `xorm:"bigint default 0 comment('本次使用的币数量')" json:"total_consumed"` // 本次扣费数量
-	Caller           string `xorm:"varchar(64) index comment('调用方')" json:"caller"`             // 调用方
-	Model            string `xorm:"varchar(64) comment('模型')" json:"model"`                     // 模型
-	ModelId          string `xorm:"varchar(64) comment('模型id')" json:"model_id"`                // 模型id
-	ActualProvider   string `xorm:"varchar(64) comment('服务商')" son:"actual_provider"`           // 实际服务商
-	ActualProviderId string `xorm:"varchar(64) comment('服务商id')" json:"actual_provider_id"`     // 实际服务商id
-	InputTokens      int64  `xorm:"bigint default 0 comment('输入token数')" json:"input_tokens"`   // 输入token数
-	OutputTokens     int64  `xorm:"bigint default 0 comment('输出token数')" json:"output_tokens"`  // 输出token数
-	CacheTokens      int64  `xorm:"bigint default 0 comment('缓存token数')" json:"cache_tokens"`   // 缓存token数
-	InputPrice       int    `xorm:"int default 0 comment('输入token价格')" json:"input_price"`      // 输入token价格
-	OutputPrice      int    `xorm:"int default 0 comment('输出token价格')" json:"output_price"`     // 输出token价格
-	CachePrice       int    `xorm:"int default 0 comment('缓存token价格')" json:"cache_price"`      // 缓存token价格
-	CreatedAt        int64  `xorm:"created comment('创建时间')" json:"created"`                     // 创建时间
-	UpdatedAt        int64  `xorm:"updated comment('更新时间')" json:"updated"`                     // 更新时间
+	Id               int64  `json:"id" xorm:"'id' pk autoincr comment('主键，自增') BIGINT(20)"`
+	UserId           int64  `json:"user_id" xorm:"'user_id' not null comment('用户ID') index BIGINT(11)"`
+	NodeId           int64  `json:"node_id" xorm:"'node_id' BIGINT(11)"`
+	DiscountAmount   int64  `json:"discount_amount" xorm:"'discount_amount' default 0 comment('折扣数量') BIGINT(20)"`
+	TotalConsumed    int64  `json:"total_consumed" xorm:"'total_consumed' default 0 comment('本次使用的币数量') BIGINT(20)"`
+	Caller           string `json:"caller" xorm:"'caller' comment('调用方') index VARCHAR(64)"`
+	Model            string `json:"model" xorm:"'model' comment('模型') VARCHAR(64)"`
+	ModelId          int64  `json:"model_id" xorm:"'model_id' comment('模型id') BIGINT(11)"`
+	ActualProvider   string `json:"actual_provider" xorm:"'actual_provider' comment('服务商') VARCHAR(64)"`
+	ActualProviderId string `json:"actual_provider_id" xorm:"'actual_provider_id' comment('服务商id') VARCHAR(64)"`
+	ConsumeType      string `json:"consume_type" xorm:"'consume_type' default '' comment('消费类型') VARCHAR(255)"`
+	TotalCost        int64  `json:"total_cost" xorm:"'total_cost' default 0 comment('成本') BIGINT(20)"`
+	CreatedAt        int64  `json:"created_at" xorm:"'created_at' comment('创建时间') BIGINT(20)"`
+	UpdatedAt        int64  `json:"updated_at" xorm:"'updated_at' comment('更新时间') BIGINT(20)"`
 }
 
 func (o *UserConsumeRecord) TableName() string {
 	return "user_consume_record"
 }
 
-func (o *UserConsumeRecord) GetSliceName(slice string) string {
-	return fmt.Sprintf("user_consume_record_%s", slice)
+func (o *UserConsumeRecord) GetSliceName(slice string, num uint32) string {
+	var hash uint32
+	for _, c := range slice {
+		hash = hash*31 + uint32(c)
+	}
+	shardIndex := hash % num
+	return fmt.Sprintf("user_consume_record_%d", shardIndex)
 }
 
 func (o *UserConsumeRecord) GetSliceDateMonthTable() string {
