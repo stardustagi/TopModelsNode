@@ -11,7 +11,6 @@ import (
 	users "github.com/stardustagi/TopModelsNode/backend/services/node_users"
 	"github.com/stardustagi/TopModelsNode/constants"
 	_ "github.com/stardustagi/TopModelsNode/docs"
-	bill "github.com/stardustagi/TopModelsPlatform/backend/services/node_bill"
 	echoSwagger "github.com/swaggo/echo-swagger"
 )
 
@@ -49,8 +48,6 @@ func main() {
 	defer nodeService.Stop()
 	userService := users.GetNodeUsersHttpServiceInstance()
 	userService.Start(app)
-	nodeBill := bill.GetNodeHttpBillServiceInstance()
-	nodeBill.Start(app)
 	defer userService.Stop()
 
 	app.Start()
