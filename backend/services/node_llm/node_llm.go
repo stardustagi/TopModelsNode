@@ -80,6 +80,53 @@ func (n *NodeHttpService) writeModelInfo2Redis(nodeId int64, modelsInfo []ModelI
 	return true, nil
 }
 
+// verifyProviderQuota 检查模型供应商是否超限额
+// 返回 true 表示已超限额，false 表示未超限额
+func (n *NodeHttpService) verifyProviderQuota(provider *models.ModelsProvider) (bool, error) {
+	// 如果没有设置限额（Quota <= 0），则不限制
+	if provider.Quota <= 0 {
+		return false, nil
+	}
+
+	session := n.dao.NewSession()
+	defer session.Close()
+
+	// 获取当前月份
+	currentMonth := time.Now().Format("2006-01")
+
+	// 查询该供应商当月的消费汇总
+	summary := &models.ProviderConsumeSummary{
+		ActualProviderId: int(provider.Id),
+		Month:            currentMonth,
+	}
+	ok, err := session.FindOne(summary)
+	if err != nil {
+		n.logger.Error("查询供应商消费汇总失败",
+			zap.Error(err),
+			zap.Int64("providerId", provider.Id))
+		// 查询失败时，保守起见不限制
+		return false, err
+	}
+
+	if !ok {
+		// 没有消费记录，未超限额
+		return false, nil
+	}
+
+	// 比较已消费金额与限额
+	if summary.TotalCost >= provider.Quota {
+		n.logger.Warn("供应商已超限额",
+			zap.Int64("providerId", provider.Id),
+			zap.String("providerName", provider.Name),
+			zap.Int64("quota", provider.Quota),
+			zap.Int64("totalCost", summary.TotalCost),
+			zap.String("month", currentMonth))
+		return true, nil
+	}
+
+	return false, nil
+}
+
 // readModelInfo2DB 从数据库读取模型信息
 func (n *NodeHttpService) readModelInfo2DB(nodeId int64) ([]ModelInfo, error) {
 	n.logger.Info("readModelInfo2DB called", zap.Int64("nodeName", nodeId))
@@ -115,6 +162,20 @@ func (n *NodeHttpService) readModelInfo2DB(nodeId int64) ([]ModelInfo, error) {
 			if !ok || err != nil {
 				continue
 			}
+			// 检查模型供应商是否超限额
+			if ok, err := n.verifyProviderQuota(dbProvider); err != nil {
+				n.logger.Error("检查模型供应商限额失败",
+					zap.Error(err),
+					zap.Int64("providerId", dbProvider.Id))
+				return nil, err
+			} else if ok {
+				// 超限额，跳过该供应商
+				n.logger.Warn("模型供应商超限额，跳过该供应商",
+					zap.Int64("providerId", dbProvider.Id),
+					zap.String("providerName", dbProvider.Name))
+				continue
+			}
+
 			providers = append(providers, Provider{
 				ID:          dbProvider.Id,
 				Type:        dbProvider.Type,
@@ -153,6 +214,8 @@ func (n *NodeHttpService) readModelInfo2DB(nodeId int64) ([]ModelInfo, error) {
 func (n *NodeHttpService) readModelInfo2Redis(nodeId int64) ([]ModelInfo, error) {
 	n.logger.Info("readModelInfo2Redis called", zap.Int64("nodeName", nodeId))
 
+	session := n.dao.NewSession()
+	defer session.Close()
 	// 检查Key是否存在
 	infoKey := constants.NodeInfoKey(nodeId)
 	exists, err := n.rds.Exists(n.ctx, infoKey)
@@ -183,6 +246,29 @@ func (n *NodeHttpService) readModelInfo2Redis(nodeId int64) ([]ModelInfo, error)
 				zap.Int64("nodeName", nodeId))
 			continue
 		}
+		// 校验是否超过限额，如果超限额则过滤掉超限的供应商
+		var validProviders []Provider
+		for _, provider := range modelInfo.Providers {
+			dbProvider := &models.ModelsProvider{Id: provider.ID}
+			ok, err := session.FindOne(dbProvider)
+			if !ok || err != nil {
+				continue
+			}
+			if exceeded, _ := n.verifyProviderQuota(dbProvider); exceeded {
+				n.logger.Warn("模型供应商超限额，跳过该供应商",
+					zap.Int64("providerId", dbProvider.Id),
+					zap.String("providerName", dbProvider.Name))
+				continue
+			}
+			validProviders = append(validProviders, provider)
+		}
+		// 如果没有有效的供应商，跳过该模型
+		if len(validProviders) == 0 {
+			n.logger.Warn("模型没有可用的供应商，跳过该模型",
+				zap.String("modelId", modelId))
+			continue
+		}
+		modelInfo.Providers = validProviders
 		modelInfos = append(modelInfos, modelInfo)
 	}
 
@@ -346,10 +432,6 @@ func (n *NodeHttpService) getNodeIdModelsInfo(nodeId int64) ([]ModelInfo, error)
 	n.logger.Info("获取模型信息成功",
 		zap.Int64("nodeId", nodeId),
 		zap.Int("modelCount", len(modelInfos)))
-
-	//for _, modelInfo := range modelInfos {
-	//	modelInfos = append(modelInfos, modelInfo)
-	//}
 
 	return modelInfos, nil
 }
