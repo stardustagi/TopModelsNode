@@ -26,6 +26,7 @@ type UpsetNodeInfoRequest struct {
 	AccessKey string `json:"access_key"`
 	SecretKey string `json:"secret_key"`
 	CompanyId int64  `json:"company_id"`
+	Location  string `json:"location"`
 }
 
 type ModelsProviderInfo struct {

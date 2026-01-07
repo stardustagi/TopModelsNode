@@ -20,6 +20,7 @@ BEGIN
         'SELECT ',
         '  n.id AS node_id, ',
         '  n.name AS node_name, ',
+        '  n.location AS location, ',
         '  n.owner_id, ',
         '  n.created_at AS node_created_at, ',
         '  n.lastupdate_at AS node_lastupdate_at, ',

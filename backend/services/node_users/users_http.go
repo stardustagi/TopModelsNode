@@ -822,6 +822,7 @@ func (nus *NodeUsersHttpService) UpsertNodeInfos(ctx echo.Context,
 		LastupdateAt: time.Now().Unix(),
 		Domain:       req.Domain,
 		CompanyId:    req.CompanyId,
+		Location:     req.Location,
 	}
 	if _, err := session.Upsert(where, bean); err != nil {
 		nus.logger.Info("databases error:", zap.Error(err))

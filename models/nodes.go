@@ -17,6 +17,7 @@ type Nodes struct {
 	SecurityKey  string `json:"security_key" xorm:"'security_key' comment('sk') VARCHAR(255)"`
 	CompanyId    int64  `json:"company_id" xorm:"'company_id' comment('企业ID') BIGINT(12)"`
 	Status       int    `json:"status" xorm:"'status' comment('节点状态') TINYINT(1)"`
+	Location     string `json:"location" xorm:"'location' comment('节点位置') VARCHAR(128)"`
 }
 
 func (o *Nodes) TableName() string {
