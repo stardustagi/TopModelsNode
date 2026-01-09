@@ -1,5 +1,7 @@
 package requests
 
+import "time"
+
 // RegisterUserRequest 用户注册请求
 type RegisterUserRequest struct {
 	Username string `json:"username" validate:"required,min=3,max=50"`
@@ -68,4 +70,25 @@ type DeleteNodeAkSkRequest struct {
 type UserBalanceReq struct {
 	UserID     int64  `json:"user_id" validate:"required"`
 	WalletType string `json:"wallet_type" validate:"required"`
+}
+
+type StatusReportReq struct {
+	TraceId          string    `json:"trace_id"`           //跟踪id
+	NodeAddr         string    `json:"node_addr"`          //llm代理地址
+	Model            string    `json:"model"`              //模型名字
+	ModelID          int       `json:"model_id"`           // 模型id（计费使用）
+	ActualModel      string    `json:"actual_model"`       // 实际使用的模型
+	Provider         string    `json:"provider"`           //虚拟provider
+	ActualProvider   string    `json:"actual_provider"`    // 实际服务商
+	ActualProviderId string    `json:"actual_provider_id"` // 实际服务商id
+	UserId           int64     `json:"user_id"`            //用户id
+	CallerKey        string    `json:"caller_key"`         //客户端key
+	Stream           bool      `json:"stream"`             //是否流式访问
+	ReportType       string    `json:"report_type"`        //text/image/video
+	TokensPerSec     int       `json:"tokens_per_sec"`     //每秒输出token
+	Latency          float64   `json:"latency"`            //请求延迟
+	Step             string    `json:"step"`               //调用环节
+	StatusCode       string    `json:"status_code"`        // 状态码（非空为失败）
+	StatusMessage    string    `json:"status_message"`     //状态消息 （状态码非空的时候有值）
+	CreatedAt        time.Time `json:"created_at"`         //请求时间
 }

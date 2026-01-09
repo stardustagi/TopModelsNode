@@ -465,3 +465,61 @@ func (n *NodeHttpService) CheckUserBalance(ctx echo.Context,
 
 	return protocol.Response(ctx, nil, resp)
 }
+
+func (n *NodeHttpService) StatusReport(ctx echo.Context, req requests.StatusReportReq, resp responses.DefaultResponse) error {
+	session := n.dao.NewSession()
+	defer session.Close()
+	t := time.Now()
+	tableName := fmt.Sprintf("status_report_%d%02d%02d", t.Year(), t.Month(), t.Day())
+	stream := 0
+	if req.Stream {
+		stream = 1
+	}
+	report := &models.StatusReport{
+		TraceId:          req.TraceId,
+		NodeAddr:         req.NodeAddr,
+		Model:            req.Model,
+		ModelId:          req.ModelID,
+		ActualModel:      req.ActualModel,
+		Provider:         req.Provider,
+		ActualProvider:   req.ActualProvider,
+		ActualProviderId: req.ActualProviderId,
+		UserId:           req.UserId,
+		CallerKey:        req.CallerKey,
+		Stream:           stream,
+		ReportType:       req.ReportType,
+		TokensPerSec:     req.TokensPerSec,
+		Latency:          fmt.Sprintf("%.4f", req.Latency),
+		Step:             req.Step,
+		StatusCode:       req.StatusCode,
+		StatusMessage:    req.StatusMessage,
+		CreatedAt:        req.CreatedAt,
+	}
+
+	if ok, err := session.Native().IsTableExist(tableName); err != nil || !ok {
+		if err != nil {
+			n.logger.Error("创建表失败", zap.Error(err), zap.String("table", tableName))
+			return protocol.Response(ctx,
+				constants.ErrInternalServer.AppendErrors(fmt.Errorf("创建表失败: %v", err)),
+				nil)
+		}
+		if !ok {
+			err = session.Native().Table(tableName).CreateTable(&report)
+			if err != nil {
+				n.logger.Error("创建表失败", zap.Error(err), zap.String("table", tableName))
+				return protocol.Response(ctx,
+					constants.ErrInternalServer.AppendErrors(fmt.Errorf("创建表失败: %v", err)),
+					nil)
+			}
+		}
+	}
+	_, err := session.Native().Table(tableName).Insert(&report)
+	if err != nil {
+		n.logger.Error("插入使用量报告失败", zap.Error(err), zap.String("table", tableName), zap.Any("report", report))
+		return protocol.Response(ctx,
+			constants.ErrInternalServer.AppendErrors(err),
+			nil)
+	}
+
+	return protocol.Response(ctx, nil, nil)
+}
