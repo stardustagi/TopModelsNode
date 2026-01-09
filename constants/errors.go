@@ -17,5 +17,4 @@ var (
 	ErrNodeNotRegister    = topError.New("Node not registered", 1007)
 	ErrGetUserBalance     = topError.New("Failed to get user balance", 1008)
 	ErrNodeUserNotOwnNode = topError.New("Node user does not own node", 1009)
-	ErrTableNotExist      = topError.New("StatusReport table not exist", 1010)
 )

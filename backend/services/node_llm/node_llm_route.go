@@ -36,8 +36,4 @@ func (n *NodeHttpService) initialization() {
 		"checkUserBalance",
 		[]string{"llm", "node", "balance"},
 		n.CheckUserBalance))
-	n.app.AddPostHandler("node", server.NewHandler(
-		"statusReport",
-		[]string{"llm", "node", "statusReport"},
-		n.StatusReport))
 }
